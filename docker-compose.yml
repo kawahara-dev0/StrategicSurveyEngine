@@ -1,0 +1,19 @@
+# PostgreSQL 15 をローカル開発用に起動
+# 使い方: プロジェクトルートで docker compose up -d
+# 停止: docker compose down
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: strategic_survey_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: strategic_survey
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
