@@ -20,5 +20,8 @@ class Settings(BaseSettings):
     # Schema names
     public_schema: str = "public"
 
+    # Admin API (Phase 2)
+    admin_api_key: str = ""
+
 
 settings = Settings()

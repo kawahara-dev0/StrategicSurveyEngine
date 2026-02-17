@@ -21,7 +21,7 @@ StrategicSurvey/
 
 ## バックエンド（backend/）
 
-Phase 1 で実装済み: FastAPI、SQLAlchemy 2.0、動的スキーマ切替ミドルウェア、Public/Tenant モデル、Alembic。
+Phase 1–2 で実装済み: FastAPI、SQLAlchemy 2.0、動的スキーマ切替、Public/Tenant モデル、Alembic、**Admin API（調査作成・質問定義）**。
 
 ### セットアップ・起動
 
@@ -42,10 +42,22 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-### 動作確認（Phase 1）
+### 動作確認
 
+**Phase 1**
 - `GET /health` → `{"status": "ok"}`
-- `GET /debug/schema` → 現在の `search_path`（UUID 付きパスや `X-Survey-UUID` でテナント切替を確認可能）
+- `GET /survey/{uuid}/debug/schema` → テナントスキーマ切替の確認
+
+**Phase 2（Admin API）**
+
+`X-Admin-API-Key` ヘッダーで認証（`.env` の `ADMIN_API_KEY` が空なら未設定で全許可）。
+
+| メソッド | パス | 説明 |
+|----------|------|------|
+| POST | /admin/surveys | 新規調査作成（UUID・Access Code・スキーマ・テーブルを自動作成） |
+| GET | /admin/surveys | 調査一覧 |
+| POST | /admin/surveys/{id}/questions | 質問を追加（label, question_type, options, is_required, is_personal_data） |
+| GET | /admin/surveys/{id}/questions | 質問一覧 |
 
 ---
 

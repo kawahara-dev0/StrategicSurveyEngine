@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal
 from app.models.public import Survey
 
-# Paths that carry survey UUID: /survey/{uuid}/... or /manager/{uuid}/...
+# Paths that carry survey UUID: /survey/{uuid}, /manager/{uuid}, /admin/surveys/{uuid}
 SURVEY_PATH_PATTERN = re.compile(
-    r"^/(?:survey|manager)/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
+    r"^/(?:survey|manager|admin/surveys)/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"
 )
 HEADER_SURVEY_UUID = "X-Survey-UUID"
 

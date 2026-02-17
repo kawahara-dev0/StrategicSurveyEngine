@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.middleware.schema_middleware import SchemaSwitchingMiddleware
+from app.routers import admin
 
 app = FastAPI(
     title=settings.app_name,
@@ -14,6 +15,8 @@ app = FastAPI(
 
 # Dynamic schema-switching: must run before any route that uses DB
 app.add_middleware(SchemaSwitchingMiddleware)
+
+app.include_router(admin.router)
 
 
 @app.get("/health")
