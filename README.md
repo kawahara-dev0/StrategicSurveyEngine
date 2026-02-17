@@ -1,66 +1,129 @@
 # Strategic Survey Engine
 
-調査フィードバックをスキーマ分離で安全に扱う Web アプリ（バックエンド + フロントエンド同一リポジトリ）。
+Survey feedback platform with schema-per-survey isolation (backend + frontend in one repo).
 
-## プロジェクト構成
+## Documentation
+
+- [Development roadmap](docs/development_roadmap.md)
+- [Tech stack](docs/tech_stack.md)
+- [DB design](docs/db_design.md)
+- [UI design](docs/ui_design.md)
+
+## Project layout
 
 ```
 StrategicSurvey/
-├── backend/          # FastAPI + SQLAlchemy 2.0（API・DB）
-├── frontend/         # フロントエンド予定（React + Vite + TypeScript）
-└── docs/             # 設計・仕様ドキュメント
+├── backend/       # FastAPI + SQLAlchemy 2.0 (Admin API, schema switching)
+├── frontend/      # React 18 (Vite) + TypeScript + Tailwind
+├── docs/
+└── docker-compose.yml   # DB + Backend + Frontend
 ```
-
-## ドキュメント
-
-- [開発ロードマップ](docs/development_roadmap.md)
-- [技術スタック](docs/tech_stack.md)
-- [DB設計](docs/db_design.md)
 
 ---
 
-## バックエンド（backend/）
+## Quick start with Docker Compose
 
-Phase 1–2 で実装済み: FastAPI、SQLAlchemy 2.0、動的スキーマ切替、Public/Tenant モデル、Alembic、**Admin API（調査作成・質問定義）**。
+Runs PostgreSQL, backend (FastAPI), and frontend (Vite dev server). Migrations run on backend startup.
 
-### セットアップ・起動
+```bash
+# From project root
+docker compose up -d
+```
+
+- **Frontend**: http://localhost:5173  
+- **API docs**: http://localhost:8000/docs  
+- **Health**: http://localhost:8000/health  
+
+Optional: copy `.env.example` to `.env` and set `ADMIN_API_KEY` / `VITE_ADMIN_API_KEY` if you want to protect the Admin API.
+
+```bash
+docker compose down   # stop all
+```
+
+---
+
+## Backend (without Docker)
+
+- **Stack**: FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 15+, Alembic, bcrypt.
+- **Phase 1**: Schema switching by survey UUID; public `surveys` table; tenant tables (questions, raw_responses, etc.).
+- **Phase 2**: Admin API – create survey (UUID, Access Code, tenant schema + tables), list surveys, add/list questions.
+
+### Setup and run
 
 ```bash
 cd backend
 python -m venv .venv
 .venv\Scripts\activate   # Windows
-# source .venv/bin/activate  # Linux/macOS
+# source .venv/bin/activate   # Linux/macOS
 pip install -r requirements.txt
 cp .env.example .env
-# .env の DATABASE_URL を編集
+# Set DATABASE_URL in .env (e.g. postgresql+asyncpg://postgres:postgres@localhost:5432/strategic_survey)
 ```
 
-PostgreSQL 15+ で DB を作成してから:
+Apply migrations and start the server:
 
 ```bash
-alembic upgrade head
+python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-### 動作確認
+### Admin API (Phase 2)
 
-**Phase 1**
-- `GET /health` → `{"status": "ok"}`
-- `GET /survey/{uuid}/debug/schema` → テナントスキーマ切替の確認
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /admin/surveys | Create survey (returns `access_code` once) |
+| GET | /admin/surveys | List surveys |
+| POST | /admin/surveys/{id}/questions | Add question |
+| GET | /admin/surveys/{id}/questions | List questions |
 
-**Phase 2（Admin API）**
-
-`X-Admin-API-Key` ヘッダーで認証（`.env` の `ADMIN_API_KEY` が空なら未設定で全許可）。
-
-| メソッド | パス | 説明 |
-|----------|------|------|
-| POST | /admin/surveys | 新規調査作成（UUID・Access Code・スキーマ・テーブルを自動作成） |
-| GET | /admin/surveys | 調査一覧 |
-| POST | /admin/surveys/{id}/questions | 質問を追加（label, question_type, options, is_required, is_personal_data） |
-| GET | /admin/surveys/{id}/questions | 質問一覧 |
+Use header `X-Admin-API-Key` if `ADMIN_API_KEY` is set in backend `.env`.
 
 ---
 
-## フロントエンド（frontend/）
+## Frontend (without Docker)
 
-後日、React (Vite) + TypeScript + Tailwind + Shadcn UI で作成予定。詳細は [docs/tech_stack.md](docs/tech_stack.md) を参照。
+- **Stack**: React 18, Vite, TypeScript, Tailwind CSS, TanStack Query, Lucide React, React Router.
+- **Features**: Survey list, create survey (with one-time Access Code), survey detail with question list and add-question form.
+
+### Setup and run
+
+1. Start the backend (see above) and ensure it is reachable (e.g. http://localhost:8000).
+2. From project root:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# For local dev with Vite proxy: leave VITE_API_URL unset or set to /api (default).
+# For Docker backend: set VITE_API_URL=http://localhost:8000
+```
+
+```bash
+npm run dev
+```
+
+Open http://localhost:5173. With default `/api` proxy, the dev server forwards API calls to the backend (configure `server.proxy` in `vite.config.ts` to match your backend URL if needed).
+
+### Build
+
+```bash
+npm run build
+npm run preview
+```
+
+---
+
+## Environment summary
+
+| Variable | Where | Description |
+|----------|--------|-------------|
+| `DATABASE_URL` | backend | PostgreSQL URL (async: `postgresql+asyncpg://...`). |
+| `ADMIN_API_KEY` | backend | Optional; required header `X-Admin-API-Key` for Admin API. |
+| `VITE_API_URL` | frontend | API base URL. Default `/api` (Vite proxy). With Docker: `http://localhost:8000`. |
+| `VITE_ADMIN_API_KEY` | frontend | Optional; same as `ADMIN_API_KEY` so the UI can call the Admin API. |
+
+---
+
+## License / repo
+
+See repository for license and contribution details.

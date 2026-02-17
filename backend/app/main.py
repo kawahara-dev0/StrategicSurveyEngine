@@ -1,5 +1,6 @@
 """FastAPI application entry point."""
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +14,16 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-# Dynamic schema-switching: must run before any route that uses DB
+# CORS last = outermost: handles OPTIONS first, adds headers to all responses (incl. 500)
 app.add_middleware(SchemaSwitchingMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 app.include_router(admin.router)
 

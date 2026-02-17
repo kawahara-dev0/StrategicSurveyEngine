@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from uuid import UUID, uuid4
 
 import bcrypt
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.public import Survey, SurveyStatus
@@ -81,6 +81,7 @@ async def create_survey(
     db: AsyncSession,
     name: str,
     *,
+    notes: str | None = None,
     contract_days: int = 30,
 ) -> tuple[Survey, str]:
     """
@@ -116,9 +117,25 @@ async def create_survey(
         contract_end_date=contract_end,
         deletion_due_date=deletion_due,
         access_code_hash=access_code_hash,
+        notes=notes,
     )
     db.add(survey)
     await db.flush()
     await db.refresh(survey)
 
     return survey, access_code
+
+
+async def delete_survey(db: AsyncSession, survey_id: UUID) -> None:
+    """Drop tenant schema and delete survey from public.surveys."""
+    await db.execute(text("SET search_path TO public"))
+    result = await db.execute(
+        select(Survey).where(Survey.id == survey_id)
+    )
+    survey = result.scalar_one_or_none()
+    if not survey:
+        raise ValueError("Survey not found")
+    schema_name = survey.schema_name
+    _validate_schema_name(schema_name)
+    await db.execute(text(f"DROP SCHEMA IF EXISTS {schema_name} CASCADE"))
+    await db.delete(survey)

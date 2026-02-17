@@ -3,7 +3,7 @@ import enum
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import Date, Enum as SQLEnum, String
+from sqlalchemy import Date, Enum as SQLEnum, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,3 +33,4 @@ class Survey(Base):
     contract_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     deletion_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     access_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)

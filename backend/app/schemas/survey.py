@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class SurveyCreate(BaseModel):
     name: str
+    notes: str | None = None
 
 
 class SurveyResponse(BaseModel):
@@ -16,6 +17,7 @@ class SurveyResponse(BaseModel):
     status: str
     contract_end_date: date | None
     deletion_due_date: date | None
+    notes: str | None = None
 
     class Config:
         from_attributes = True
