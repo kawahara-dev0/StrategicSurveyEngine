@@ -82,10 +82,11 @@ class RawAnswer(Base):
     is_disclosure_agreed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     response: Mapped["RawResponse"] = relationship("RawResponse", back_populates="raw_answers")
+    question: Mapped["Question"] = relationship("Question", backref="raw_answers")
 
 
 class PublishedOpinion(Base):
-    """Moderated content derived from raw data."""
+    """Moderated content derived from raw data. Score: (importance+urgency+expected_impact)*2 + supporter_points (max 14)."""
 
     __tablename__ = "published_opinions"
 
@@ -94,7 +95,17 @@ class PublishedOpinion(Base):
     title: Mapped[str] = mapped_column(String(512), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     priority_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    importance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
+    urgency: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
+    expected_impact: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
+    supporter_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
     disclosed_pii: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
 
 class Upvote(Base):

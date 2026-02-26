@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listQuestions, createQuestion, getSurvey, deleteQuestion } from "@/lib/api";
 import type { QuestionCreatePayload } from "@/types/api";
-import { ArrowLeft, Plus, ListChecks, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, ListChecks, Trash2, ExternalLink, Gavel } from "lucide-react";
 
 const QUESTION_TYPES: QuestionCreatePayload["question_type"][] = [
   "text",
@@ -97,7 +97,26 @@ export function SurveyDetail() {
           <p className="text-sm text-slate-700 whitespace-pre-wrap">{survey.notes}</p>
         </div>
       )}
-      <p className="text-sm text-slate-500 mb-6">Survey ID: {surveyId}</p>
+      <p className="text-sm text-slate-500 mb-2">Survey ID: {surveyId}</p>
+      <div className="flex flex-wrap items-center gap-4 mb-6">
+        <a
+          href={`/survey/${surveyId}/post`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Open submission form (share with contributors)
+        </a>
+        <button
+          type="button"
+          onClick={() => navigate(`/admin/surveys/${surveyId}/moderation`)}
+          className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"
+        >
+          <Gavel className="w-4 h-4" />
+          Moderation workspace
+        </button>
+      </div>
 
       {!showForm ? (
         <button

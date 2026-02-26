@@ -61,7 +61,12 @@ def _tenant_ddl_statements(schema: str) -> list[str]:
             title VARCHAR(512) NOT NULL,
             content TEXT NOT NULL,
             priority_score INTEGER NOT NULL DEFAULT 0,
-            disclosed_pii JSONB
+            importance INTEGER NOT NULL DEFAULT 0,
+            urgency INTEGER NOT NULL DEFAULT 0,
+            expected_impact INTEGER NOT NULL DEFAULT 0,
+            supporter_points INTEGER NOT NULL DEFAULT 0,
+            disclosed_pii JSONB,
+            updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         )""",
         f"""CREATE TABLE {s}.upvotes (
             id SERIAL PRIMARY KEY,

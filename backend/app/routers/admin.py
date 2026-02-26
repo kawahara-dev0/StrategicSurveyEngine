@@ -1,16 +1,27 @@
-"""Admin API: survey provisioning and question definition."""
+"""Admin API: survey provisioning, question definition, moderation (Phase 4)."""
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import select, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
 from app.models.public import Survey
-from app.models.tenant import Question, QuestionType
+from app.models.tenant import Question, QuestionType, PublishedOpinion, RawAnswer, RawResponse
 from app.schemas.question import QuestionCreate, QuestionResponse
+from app.schemas.moderation import (
+    RawAnswerWithLabel,
+    RawResponseDetail,
+    RawResponseListItem,
+    OpinionUpdate,
+    PublishOpinionCreate,
+    PublishedOpinionResponse,
+    _score_from_components,
+)
 from app.schemas.survey import SurveyCreate, SurveyCreateResponse, SurveyResponse
 from app.services.survey_provisioning import create_survey, delete_survey
 
@@ -194,3 +205,287 @@ async def delete_question(
         raise HTTPException(status_code=404, detail="Question not found")
     await db.delete(q)
     return {"deleted": question_id}
+
+
+# --- Phase 4: Moderation & Published Opinions ---
+
+
+def _priority_score(importance: int, urgency: int, expected_impact: int, supporter_count: int = 0) -> int:
+    """14-point scale: (Imp+Urg+Exp)*2 + supporters(0-2). Supporters mapped: 0->0, 1-2->1, 3+->2."""
+    supporters_pts = min(2, (supporter_count > 0) + (supporter_count >= 3))
+    return (importance + urgency + expected_impact) * 2 + supporters_pts
+
+
+def _supporters_pts_from_count(supporter_count: int) -> int:
+    """Map supporter count to 0-2 points."""
+    return min(2, (supporter_count > 0) + (supporter_count >= 3))
+
+
+_SCHEMA_NAME_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+async def _get_tenant_schema(db: AsyncSession, survey_id: UUID) -> str:
+    """Resolve tenant schema_name from public.surveys. Raises 404 if not found."""
+    await db.execute(text("SET search_path TO public"))
+    # Use raw SQL to avoid any ORM/schema resolution ambiguity
+    r = await db.execute(
+        text("SELECT schema_name FROM public.surveys WHERE id = :id"),
+        {"id": str(survey_id)},
+    )
+    row = r.mappings().first()
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Survey not found: {survey_id}. Check GET /admin/surveys and ensure the same DB is used.",
+        )
+    schema_name = row["schema_name"]
+    if not _SCHEMA_NAME_PATTERN.match(schema_name):
+        raise HTTPException(status_code=400, detail="Invalid schema name")
+    return schema_name
+
+
+@router.get("/surveys/{survey_id}/responses/{response_id}", response_model=RawResponseDetail)
+async def get_response(
+    survey_id: UUID,
+    response_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """Get one raw response with answers and question labels (moderation workspace)."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(
+        select(RawResponse)
+        .where(RawResponse.id == response_id)
+        .options(selectinload(RawResponse.raw_answers).selectinload(RawAnswer.question))
+    )
+    response = result.scalar_one_or_none()
+    if not response:
+        raise HTTPException(status_code=404, detail="Response not found")
+    answers = [
+        RawAnswerWithLabel(
+            question_id=a.question_id,
+            label=a.question.label,
+            answer_text=a.answer_text,
+            is_disclosure_agreed=a.is_disclosure_agreed,
+        )
+        for a in sorted(response.raw_answers, key=lambda x: x.question_id)
+    ]
+    return RawResponseDetail(
+        id=str(response.id),
+        submitted_at=response.submitted_at.isoformat() if response.submitted_at else "",
+        answers=answers,
+    )
+
+
+@router.get("/surveys/{survey_id}/responses", response_model=list[RawResponseListItem])
+async def list_responses(
+    survey_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """List raw responses (alias: same as /submissions). Kept for backward compatibility."""
+    return await _list_raw_responses_impl(db, survey_id)
+
+
+@router.get("/surveys/{survey_id}/submissions", response_model=list[RawResponseListItem])
+async def list_submissions(
+    survey_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """List raw responses for moderation."""
+    return await _list_raw_responses_impl(db, survey_id)
+
+
+@router.get("/moderation/{survey_id}/submissions", response_model=list[RawResponseListItem])
+async def list_submissions_alt(
+    survey_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """List raw responses (alternative path under /admin/moderation/ to avoid any route conflicts)."""
+    return await _list_raw_responses_impl(db, survey_id)
+
+
+@router.patch("/moderation/{survey_id}/opinions/{opinion_id}", response_model=PublishedOpinionResponse)
+async def update_opinion(
+    survey_id: UUID,
+    opinion_id: int,
+    body: OpinionUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """Update title, content, and/or score components (Imp, Urg, Impact, supporters 0-2). Recomputes priority_score."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(select(PublishedOpinion).where(PublishedOpinion.id == opinion_id))
+    opinion = result.scalar_one_or_none()
+    if not opinion:
+        raise HTTPException(status_code=404, detail="Opinion not found")
+    if body.title is not None:
+        opinion.title = body.title
+    if body.content is not None:
+        opinion.content = body.content
+    if body.importance is not None:
+        opinion.importance = body.importance
+    if body.urgency is not None:
+        opinion.urgency = body.urgency
+    if body.expected_impact is not None:
+        opinion.expected_impact = body.expected_impact
+    if body.supporter_points is not None:
+        opinion.supporter_points = body.supporter_points
+    opinion.priority_score = _score_from_components(
+        opinion.importance,
+        opinion.urgency,
+        opinion.expected_impact,
+        opinion.supporter_points,
+    )
+    await db.flush()
+    await db.refresh(opinion)
+    return PublishedOpinionResponse(
+        id=opinion.id,
+        raw_response_id=str(opinion.raw_response_id),
+        title=opinion.title,
+        content=opinion.content,
+        priority_score=opinion.priority_score,
+        importance=opinion.importance,
+        urgency=opinion.urgency,
+        expected_impact=opinion.expected_impact,
+        supporter_points=opinion.supporter_points,
+        disclosed_pii=opinion.disclosed_pii,
+    )
+
+
+@router.get("/moderation/{survey_id}/opinions", response_model=list[PublishedOpinionResponse])
+async def list_opinions_alt(
+    survey_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """List published opinions (alternative path under /admin/moderation/)."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(
+        select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
+    )
+    opinions = result.scalars().all()
+    return [
+        PublishedOpinionResponse(
+            id=o.id,
+            raw_response_id=str(o.raw_response_id),
+            title=o.title,
+            content=o.content,
+            priority_score=o.priority_score,
+            importance=getattr(o, "importance", 0),
+            urgency=getattr(o, "urgency", 0),
+            expected_impact=getattr(o, "expected_impact", 0),
+            supporter_points=getattr(o, "supporter_points", 0),
+            disclosed_pii=o.disclosed_pii,
+        )
+        for o in opinions
+    ]
+
+
+async def _list_raw_responses_impl(db: AsyncSession, survey_id: UUID) -> list[RawResponseListItem]:
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(
+        select(RawResponse).order_by(RawResponse.submitted_at.desc())
+    )
+    responses = result.scalars().all()
+    return [
+        RawResponseListItem(
+            id=str(r.id),
+            submitted_at=r.submitted_at.isoformat() if r.submitted_at else "",
+        )
+        for r in responses
+    ]
+
+
+@router.post("/surveys/{survey_id}/opinions", response_model=PublishedOpinionResponse)
+async def create_opinion(
+    survey_id: UUID,
+    body: PublishOpinionCreate,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """Create published_opinion from a raw response. Builds disclosed_pii from PII answers with consent."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(
+        select(RawResponse)
+        .where(RawResponse.id == UUID(body.raw_response_id))
+        .options(selectinload(RawResponse.raw_answers).selectinload(RawAnswer.question))
+    )
+    response = result.scalar_one_or_none()
+    if not response:
+        raise HTTPException(status_code=404, detail="Raw response not found")
+    disclosed_pii = {}
+    for a in response.raw_answers:
+        if a.question.is_personal_data and a.is_disclosure_agreed and a.answer_text.strip():
+            disclosed_pii[a.question.label] = a.answer_text.strip()
+    supporter_count = 0  # Phase 5 will add upvotes
+    supporter_pts = _supporters_pts_from_count(supporter_count)
+    priority = _priority_score(
+        body.importance,
+        body.urgency,
+        body.expected_impact,
+        supporter_count,
+    )
+    opinion = PublishedOpinion(
+        raw_response_id=response.id,
+        title=body.title,
+        content=body.content,
+        priority_score=priority,
+        importance=body.importance,
+        urgency=body.urgency,
+        expected_impact=body.expected_impact,
+        supporter_points=supporter_pts,
+        disclosed_pii=disclosed_pii if disclosed_pii else None,
+    )
+    db.add(opinion)
+    await db.flush()
+    await db.refresh(opinion)
+    return PublishedOpinionResponse(
+        id=opinion.id,
+        raw_response_id=str(opinion.raw_response_id),
+        title=opinion.title,
+        content=opinion.content,
+        priority_score=opinion.priority_score,
+        importance=opinion.importance,
+        urgency=opinion.urgency,
+        expected_impact=opinion.expected_impact,
+        supporter_points=opinion.supporter_points,
+        disclosed_pii=opinion.disclosed_pii,
+    )
+
+
+@router.get("/surveys/{survey_id}/opinions", response_model=list[PublishedOpinionResponse])
+async def list_opinions(
+    survey_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """List published opinions for the survey (tenant schema)."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(
+        select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
+    )
+    opinions = result.scalars().all()
+    return [
+        PublishedOpinionResponse(
+            id=o.id,
+            raw_response_id=str(o.raw_response_id),
+            title=o.title,
+            content=o.content,
+            priority_score=o.priority_score,
+            importance=getattr(o, "importance", 0),
+            urgency=getattr(o, "urgency", 0),
+            expected_impact=getattr(o, "expected_impact", 0),
+            supporter_points=getattr(o, "supporter_points", 0),
+            disclosed_pii=o.disclosed_pii,
+        )
+        for o in opinions
+    ]

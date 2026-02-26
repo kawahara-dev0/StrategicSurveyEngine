@@ -47,6 +47,8 @@ docker compose down   # stop all
 - **Stack**: FastAPI, SQLAlchemy 2.0 (async), PostgreSQL 15+, Alembic, bcrypt.
 - **Phase 1**: Schema switching by survey UUID; public `surveys` table; tenant tables (questions, raw_responses, etc.).
 - **Phase 2**: Admin API – create survey (UUID, Access Code, tenant schema + tables), list surveys, add/list questions.
+- **Phase 3**: Contributor Submission API – submit raw responses with PII disclosure consent.
+- **Phase 4**: Moderation API – list raw responses, publish as opinions with 14-point priority score (Importance, Urgency, Expected Impact).
 
 ### Setup and run
 
@@ -78,12 +80,32 @@ uvicorn app.main:app --reload
 
 Use header `X-Admin-API-Key` if `ADMIN_API_KEY` is set in backend `.env`.
 
+### Public API (Phase 3 – Contributor Submission)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /survey/{id}/questions | Survey name, status, and questions (for submission form) |
+| POST | /survey/{id}/submit | Submit a response with answers. Blocks if survey is not active. |
+
+No auth required. PII fields use `is_disclosure_agreed` per answer.
+
+### Moderation API (Phase 4)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /admin/surveys/{id}/responses | List raw responses |
+| GET | /admin/surveys/{id}/responses/{response_id} | Get response with answers (for moderation) |
+| POST | /admin/surveys/{id}/opinions | Publish opinion (title, content, importance, urgency, expected_impact 0–2) |
+| GET | /admin/surveys/{id}/opinions | List published opinions |
+
+Priority score: (importance + urgency + expected_impact)×2 + supporters (0–2), max 14.
+
 ---
 
 ## Frontend (without Docker)
 
 - **Stack**: React 18, Vite, TypeScript, Tailwind CSS, TanStack Query, Lucide React, React Router.
-- **Features**: Survey list, create survey (with one-time Access Code), survey detail with question list and add-question form.
+- **Features**: Survey list, create survey (with one-time Access Code), survey detail with question list and add-question form, contributor submission form at `/survey/:id/post`.
 
 ### Setup and run
 

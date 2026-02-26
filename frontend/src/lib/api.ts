@@ -1,4 +1,4 @@
-const baseUrl = import.meta.env.VITE_API_URL ?? "/api";
+const baseUrl = import.meta.env.VITE_API_URL || "/api";
 
 function headers(includeAdminKey = true): HeadersInit {
   const h: Record<string, string> = {
@@ -81,6 +81,107 @@ export async function createQuestion(
     method: "POST",
     headers: headers(),
     body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/** Strip leading colon if present (e.g. from router param quirk) */
+function normalizeSurveyId(surveyId: string): string {
+  return surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+}
+
+/** Public API: no admin key needed (Phase 3) */
+export async function getSurveyQuestions(
+  surveyId: string
+): Promise<import("@/types/api").SurveyQuestionsResponse> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/survey/${id}/questions`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function submitSurveyResponse(
+  surveyId: string,
+  answers: import("@/types/api").AnswerSubmit[]
+): Promise<import("@/types/api").SubmitResponse> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/survey/${id}/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answers }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/** Moderation (Phase 4) - uses same surveyId normalization as public API */
+export async function listResponses(
+  surveyId: string
+): Promise<import("@/types/api").RawResponseListItem[]> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(`${baseUrl}/admin/moderation/${id}/submissions`, {
+    headers: headers(),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getResponse(
+  surveyId: string,
+  responseId: string
+): Promise<import("@/types/api").RawResponseDetail> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(
+    `${baseUrl}/admin/surveys/${id}/responses/${responseId}`,
+    { headers: headers() }
+  );
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function createOpinion(
+  surveyId: string,
+  payload: import("@/types/api").PublishOpinionPayload
+): Promise<import("@/types/api").PublishedOpinion> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(`${baseUrl}/admin/surveys/${id}/opinions`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(payload),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function listOpinions(
+  surveyId: string
+): Promise<import("@/types/api").PublishedOpinion[]> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(`${baseUrl}/admin/moderation/${id}/opinions`, {
+    headers: headers(),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateOpinion(
+  surveyId: string,
+  opinionId: number,
+  payload: import("@/types/api").OpinionUpdatePayload
+): Promise<import("@/types/api").PublishedOpinion> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const body: Record<string, unknown> = {};
+  if (payload.title !== undefined) body.title = payload.title;
+  if (payload.content !== undefined) body.content = payload.content;
+  if (payload.importance !== undefined) body.importance = payload.importance;
+  if (payload.urgency !== undefined) body.urgency = payload.urgency;
+  if (payload.expected_impact !== undefined) body.expected_impact = payload.expected_impact;
+  if (payload.supporter_points !== undefined) body.supporter_points = payload.supporter_points;
+  const r = await fetch(`${baseUrl}/admin/moderation/${id}/opinions/${opinionId}`, {
+    method: "PATCH",
+    headers: headers(),
+    body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
