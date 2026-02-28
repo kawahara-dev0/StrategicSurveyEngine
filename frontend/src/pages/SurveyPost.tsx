@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSurveyQuestions, submitSurveyResponse } from "@/lib/api";
 import type { Question, AnswerSubmit } from "@/types/api";
@@ -82,9 +82,15 @@ export function SurveyPost() {
           <h2 className="text-lg font-semibold text-emerald-900 mb-2">
             Thank you for your submission
           </h2>
-          <p className="text-emerald-800">
+          <p className="text-emerald-800 mb-4">
             Your feedback has been recorded. We appreciate your input.
           </p>
+          <Link
+            to={`/survey/${surveyId}`}
+            className="inline-flex items-center gap-1 text-emerald-800 font-medium hover:text-emerald-900 underline"
+          >
+            View this survey&apos;s opinions
+          </Link>
         </div>
       </div>
     );

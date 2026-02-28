@@ -115,6 +115,50 @@ export async function submitSurveyResponse(
   return r.json();
 }
 
+/** Public API: opinions list and search (Phase 5) – no admin key */
+export async function getPublicOpinions(
+  surveyId: string
+): Promise<import("@/types/api").PublicOpinionItem[]> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/survey/${id}/opinions`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function searchPublicOpinions(
+  surveyId: string,
+  q: string
+): Promise<import("@/types/api").PublicOpinionItem[]> {
+  const id = normalizeSurveyId(surveyId);
+  const params = new URLSearchParams();
+  if (q.trim()) params.set("q", q.trim());
+  const r = await fetch(`${baseUrl}/survey/${id}/search?${params.toString()}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function postUpvote(
+  surveyId: string,
+  opinionId: number,
+  payload: import("@/types/api").UpvoteCreatePayload
+): Promise<{ status: string; message: string }> {
+  const id = normalizeSurveyId(surveyId);
+  const body: Record<string, unknown> = {
+    comment: payload.comment != null && payload.comment.trim() ? payload.comment.trim() : null,
+    dept: payload.dept != null && payload.dept.trim() ? payload.dept.trim() : null,
+    name: payload.name != null && payload.name.trim() ? payload.name.trim() : null,
+    email: payload.email != null && payload.email.trim() ? payload.email.trim() : null,
+    is_disclosure_agreed: payload.is_disclosure_agreed ?? false,
+  };
+  const r = await fetch(`${baseUrl}/survey/${id}/opinions/${opinionId}/upvote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 /** Moderation (Phase 4) - uses same surveyId normalization as public API */
 export async function listResponses(
   surveyId: string
@@ -182,6 +226,35 @@ export async function updateOpinion(
     method: "PATCH",
     headers: headers(),
     body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/** Phase 5: list upvotes for an opinion (moderation) */
+export async function listUpvotesForOpinion(
+  surveyId: string,
+  opinionId: number
+): Promise<import("@/types/api").UpvoteItem[]> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(`${baseUrl}/admin/moderation/${id}/opinions/${opinionId}/upvotes`, {
+    headers: headers(),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/** Phase 5: update upvote (published_comment, status) */
+export async function updateUpvote(
+  surveyId: string,
+  upvoteId: number,
+  payload: { published_comment?: string | null; status?: string }
+): Promise<import("@/types/api").UpvoteItem> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(`${baseUrl}/admin/moderation/${id}/upvotes/${upvoteId}`, {
+    method: "PATCH",
+    headers: headers(),
+    body: JSON.stringify(payload),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();

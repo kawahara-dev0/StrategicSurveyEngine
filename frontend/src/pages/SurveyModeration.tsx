@@ -8,9 +8,11 @@ import {
   listOpinions,
   updateOpinion,
   getSurvey,
+  listUpvotesForOpinion,
+  updateUpvote,
 } from "@/lib/api";
-import type { PublishOpinionPayload, PublishedOpinion } from "@/types/api";
-import { ArrowLeft, Send, FileText, Star, Pencil, Check } from "lucide-react";
+import type { PublishOpinionPayload, PublishedOpinion, UpvoteItem } from "@/types/api";
+import { ArrowLeft, Send, FileText, Star, Pencil, Check, MessageSquare } from "lucide-react";
 
 /** Star rating from priority score (0-14): 12-14=5★, 9-11=4★, 6-8=3★, 3-5=2★, 0-2=1★ */
 function priorityStars(score: number): { full: number; label: string } {
@@ -33,6 +35,130 @@ function StarRating({ score }: { score: number }) {
       ))}
       <span className="ml-1 text-sm text-slate-500">({score})</span>
     </span>
+  );
+}
+
+function UpvotesSection({
+  surveyId,
+  opinionId,
+  onClose,
+}: {
+  surveyId: string;
+  opinionId: number;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const { data: upvotes = [], isLoading } = useQuery({
+    queryKey: ["upvotes", surveyId, opinionId],
+    queryFn: () => listUpvotesForOpinion(surveyId, opinionId),
+    enabled: !!surveyId && !!opinionId,
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ upvoteId, payload }: { upvoteId: number; payload: { published_comment?: string | null; status?: string } }) =>
+      updateUpvote(surveyId, upvoteId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["upvotes", surveyId, opinionId] });
+      queryClient.invalidateQueries({ queryKey: ["opinions", surveyId] });
+    },
+  });
+  const [edits, setEdits] = useState<Record<number, { published_comment: string; status: string }>>({});
+  const getEdit = (u: UpvoteItem) =>
+    edits[u.id] ?? { published_comment: u.published_comment ?? "", status: u.status };
+
+  if (isLoading) return <div className="mt-3 text-sm text-slate-500">Loading upvotes…</div>;
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-200">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-slate-500">Upvotes / Additional comments</span>
+        <button type="button" onClick={onClose} className="text-xs text-slate-400 hover:text-slate-600">
+          Close
+        </button>
+      </div>
+      {(() => {
+        const withComment = upvotes.filter((u) => u.raw_comment != null && u.raw_comment.trim() !== "");
+        if (withComment.length === 0) {
+          return <p className="text-sm text-slate-500">No additional comments to moderate.</p>;
+        }
+        return (
+          <ul className="space-y-3">
+            {withComment.map((u) => (
+              <li key={u.id} className="rounded border border-slate-200 bg-slate-50/50 p-2 text-sm">
+                {u.is_disclosure_agreed && u.disclosed_pii && Object.keys(u.disclosed_pii).length > 0 && (
+                  <p className="text-slate-600 mb-1 text-xs">
+                    Dept: {u.disclosed_pii["Dept"] ?? "—"}, Name: {u.disclosed_pii["Name"] ?? "—"}, Email: {u.disclosed_pii["Email"] ?? "—"}
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span
+                    className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
+                      u.status === "pending"
+                        ? "bg-amber-100 text-amber-800"
+                        : u.status === "published"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {u.status}
+                  </span>
+                </div>
+                <p className="text-slate-600 mb-1">
+                  Raw: {u.raw_comment}
+                </p>
+                <div className="flex flex-wrap gap-2 items-start">
+                  <div className="min-w-[200px]">
+                    <label className="block text-xs text-slate-500">Published comment</label>
+                    <textarea
+                      value={getEdit(u).published_comment}
+                      onChange={(e) =>
+                        setEdits((prev) => ({
+                          ...prev,
+                          [u.id]: { ...getEdit(u), published_comment: e.target.value },
+                        }))
+                      }
+                      rows={2}
+                      className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500">Status</label>
+                    <select
+                      value={getEdit(u).status}
+                      onChange={(e) =>
+                        setEdits((prev) => ({
+                          ...prev,
+                          [u.id]: { ...getEdit(u), status: e.target.value },
+                        }))
+                      }
+                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                    >
+                      <option value="pending">pending</option>
+                      <option value="published">published</option>
+                      <option value="rejected">rejected</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateMutation.mutate({
+                        upvoteId: u.id,
+                        payload: {
+                          published_comment: getEdit(u).published_comment.trim() || null,
+                          status: getEdit(u).status,
+                        },
+                      })
+                    }
+                    disabled={updateMutation.isPending}
+                    className="px-2 py-1 rounded bg-slate-700 text-white text-xs hover:bg-slate-600 disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        );
+      })()}
+    </div>
   );
 }
 
@@ -102,6 +228,7 @@ export function SurveyModeration() {
   });
 
   const [editingOpinionId, setEditingOpinionId] = useState<number | null>(null);
+  const [expandedUpvotesId, setExpandedUpvotesId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<{
     title: string;
     content: string;
@@ -463,23 +590,11 @@ export function SurveyModeration() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-mono text-slate-500 mb-0.5">
-                            Response ID: {o.raw_response_id}
-                          </p>
-                          <p className="font-medium text-slate-900">{o.title}</p>
-                          <p className="text-sm text-slate-600 mt-0.5 line-clamp-2">
-                            {o.content}
-                          </p>
-                          {o.disclosed_pii && Object.keys(o.disclosed_pii).length > 0 && (
-                            <p className="text-xs text-slate-500 mt-1">
-                              PII: {Object.entries(o.disclosed_pii).map(([k, v]) => `${k}=${v}`).join(", ")}
-                            </p>
-                          )}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          <StarRating score={o.priority_score} />
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-xs font-mono text-slate-500">
+                          Response ID: {o.raw_response_id}
+                        </span>
+                        <div className="flex items-center gap-0.5 shrink-0">
                           <button
                             type="button"
                             onClick={() => startEdit(o)}
@@ -488,8 +603,38 @@ export function SurveyModeration() {
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedUpvotesId((prev) => (prev === o.id ? null : o.id))}
+                            className={`p-1.5 rounded ${
+                              (o.pending_upvotes_count ?? 0) > 0
+                                ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                            }`}
+                            title="View / moderate upvotes"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
+                      <p className="font-medium text-slate-900">{o.title}</p>
+                      <p className="text-sm text-slate-600 whitespace-pre-wrap mt-0.5">
+                        {o.content}
+                      </p>
+                      {o.disclosed_pii && Object.keys(o.disclosed_pii).length > 0 && (
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          PII: {Object.entries(o.disclosed_pii).map(([k, v]) => `${k}=${v}`).join(", ")}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap items-center justify-end gap-3 mt-1 text-sm text-slate-500">
+                        <span>
+                          {(o.supporters ?? 0)} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""}
+                        </span>
+                        <StarRating score={o.priority_score} />
+                      </div>
+                      {expandedUpvotesId === o.id && (
+                        <UpvotesSection surveyId={surveyId!} opinionId={o.id} onClose={() => setExpandedUpvotesId(null)} />
+                      )}
                     </>
                   )}
                 </li>

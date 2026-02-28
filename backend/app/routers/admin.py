@@ -3,7 +3,7 @@ import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
 from app.models.public import Survey
-from app.models.tenant import Question, QuestionType, PublishedOpinion, RawAnswer, RawResponse
+from app.models.tenant import Question, QuestionType, PublishedOpinion, RawAnswer, RawResponse, Upvote, UpvoteStatus
 from app.schemas.question import QuestionCreate, QuestionResponse
 from app.schemas.moderation import (
     RawAnswerWithLabel,
@@ -20,6 +20,8 @@ from app.schemas.moderation import (
     OpinionUpdate,
     PublishOpinionCreate,
     PublishedOpinionResponse,
+    UpvoteResponse,
+    UpvoteUpdate,
     _score_from_components,
 )
 from app.schemas.survey import SurveyCreate, SurveyCreateResponse, SurveyResponse
@@ -370,6 +372,31 @@ async def list_opinions_alt(
         select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
     )
     opinions = result.scalars().all()
+    opinion_ids = [o.id for o in opinions]
+    supporters_by_opinion: dict[int, int] = {}
+    pending_by_opinion: dict[int, int] = {}
+    if opinion_ids:
+        supporters_result = await db.execute(
+            select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
+            .where(Upvote.opinion_id.in_(opinion_ids))
+            .group_by(Upvote.opinion_id)
+        )
+        supporters_by_opinion = {
+            row[0]: int(row[1]) if row[1] is not None else 0
+            for row in supporters_result.all()
+        }
+        pending_result = await db.execute(
+            select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
+            .where(
+                Upvote.opinion_id.in_(opinion_ids),
+                Upvote.status == UpvoteStatus.pending,
+            )
+            .group_by(Upvote.opinion_id)
+        )
+        pending_by_opinion = {
+            row[0]: int(row[1]) if row[1] is not None else 0
+            for row in pending_result.all()
+        }
     return [
         PublishedOpinionResponse(
             id=o.id,
@@ -381,10 +408,77 @@ async def list_opinions_alt(
             urgency=getattr(o, "urgency", 0),
             expected_impact=getattr(o, "expected_impact", 0),
             supporter_points=getattr(o, "supporter_points", 0),
+            supporters=supporters_by_opinion.get(o.id, 0),
+            pending_upvotes_count=pending_by_opinion.get(o.id, 0),
             disclosed_pii=o.disclosed_pii,
         )
         for o in opinions
     ]
+
+
+@router.get("/moderation/{survey_id}/opinions/{opinion_id}/upvotes", response_model=list[UpvoteResponse])
+async def list_upvotes_for_opinion(
+    survey_id: UUID,
+    opinion_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """List upvotes (with raw_comment, published_comment, status) for an opinion. For moderation."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(select(Upvote).where(Upvote.opinion_id == opinion_id).order_by(Upvote.created_at.desc()))
+    upvotes = result.scalars().all()
+    return [
+        UpvoteResponse(
+            id=u.id,
+            opinion_id=u.opinion_id,
+            user_hash=u.user_hash,
+            raw_comment=u.raw_comment,
+            published_comment=u.published_comment,
+            status=u.status.value,
+            created_at=u.created_at.isoformat() if u.created_at else "",
+            is_disclosure_agreed=u.is_disclosure_agreed,
+            disclosed_pii=u.disclosed_pii,
+        )
+        for u in upvotes
+    ]
+
+
+@router.patch("/moderation/{survey_id}/upvotes/{upvote_id}", response_model=UpvoteResponse)
+async def update_upvote(
+    survey_id: UUID,
+    upvote_id: int,
+    body: UpvoteUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """Set published_comment and/or status (pending, published, rejected) for an upvote."""
+    schema_name = await _get_tenant_schema(db, survey_id)
+    await db.execute(text(f"SET search_path TO {schema_name}"))
+    result = await db.execute(select(Upvote).where(Upvote.id == upvote_id))
+    upvote = result.scalar_one_or_none()
+    if not upvote:
+        raise HTTPException(status_code=404, detail="Upvote not found")
+    if body.published_comment is not None:
+        upvote.published_comment = body.published_comment.strip() or None
+    if body.status is not None:
+        try:
+            upvote.status = UpvoteStatus(body.status)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="status must be pending, published, or rejected")
+    await db.flush()
+    await db.refresh(upvote)
+    return UpvoteResponse(
+        id=upvote.id,
+        opinion_id=upvote.opinion_id,
+        user_hash=upvote.user_hash,
+        raw_comment=upvote.raw_comment,
+        published_comment=upvote.published_comment,
+        status=upvote.status.value,
+        created_at=upvote.created_at.isoformat() if upvote.created_at else "",
+        is_disclosure_agreed=upvote.is_disclosure_agreed,
+        disclosed_pii=upvote.disclosed_pii,
+    )
 
 
 async def _list_raw_responses_impl(db: AsyncSession, survey_id: UUID) -> list[RawResponseListItem]:
@@ -474,6 +568,31 @@ async def list_opinions(
         select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
     )
     opinions = result.scalars().all()
+    opinion_ids = [o.id for o in opinions]
+    supporters_by_opinion: dict[int, int] = {}
+    pending_by_opinion: dict[int, int] = {}
+    if opinion_ids:
+        supporters_result = await db.execute(
+            select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
+            .where(Upvote.opinion_id.in_(opinion_ids))
+            .group_by(Upvote.opinion_id)
+        )
+        supporters_by_opinion = {
+            row[0]: int(row[1]) if row[1] is not None else 0
+            for row in supporters_result.all()
+        }
+        pending_result = await db.execute(
+            select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
+            .where(
+                Upvote.opinion_id.in_(opinion_ids),
+                Upvote.status == UpvoteStatus.pending,
+            )
+            .group_by(Upvote.opinion_id)
+        )
+        pending_by_opinion = {
+            row[0]: int(row[1]) if row[1] is not None else 0
+            for row in pending_result.all()
+        }
     return [
         PublishedOpinionResponse(
             id=o.id,
@@ -485,6 +604,8 @@ async def list_opinions(
             urgency=getattr(o, "urgency", 0),
             expected_impact=getattr(o, "expected_impact", 0),
             supporter_points=getattr(o, "supporter_points", 0),
+            supporters=supporters_by_opinion.get(o.id, 0),
+            pending_upvotes_count=pending_by_opinion.get(o.id, 0),
             disclosed_pii=o.disclosed_pii,
         )
         for o in opinions

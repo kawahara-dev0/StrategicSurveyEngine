@@ -5,6 +5,7 @@ import { SurveyCreate } from "@/pages/SurveyCreate";
 import { SurveyDetail } from "@/pages/SurveyDetail";
 import { SurveyModeration } from "@/pages/SurveyModeration";
 import { SurveyPost } from "@/pages/SurveyPost";
+import { SurveySearch } from "@/pages/SurveySearch";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="admin/surveys/:surveyId/responses/:responseId" element={<Navigate to="../moderation" replace />} />
           <Route path="admin/surveys/:surveyId" element={<SurveyDetail />} />
           <Route path="survey/:surveyId/post" element={<SurveyPost />} />
+          <Route path="survey/:surveyId" element={<SurveySearch />} />
         </Route>
       </Routes>
     </BrowserRouter>

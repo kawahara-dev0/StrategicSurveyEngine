@@ -79,6 +79,8 @@ def _tenant_ddl_statements(schema: str) -> list[str]:
             disclosed_pii JSONB,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )""",
+        f"""CREATE INDEX idx_published_opinions_fts ON {s}.published_opinions
+            USING GIN (to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')))""",
     ]
 
 

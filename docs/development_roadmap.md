@@ -33,7 +33,7 @@
 - **Checkpoints**:
     - Verify the accuracy of the priority score and the star-rating visualization logic in the manager dashboard.
 
-## Phase 5: Search-First Public View & Social Features
+## Phase 5: Search-First Public View & Social Features ✅ Completed
 **Goal**: Implement the "Search-First" flow and moderated supplemental comments.
 - **Tasks**:
     - Implement the Keyword Search API using **GIN index** for performance.

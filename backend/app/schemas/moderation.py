@@ -45,7 +45,7 @@ class PublishOpinionCreate(BaseModel):
 
 
 class PublishedOpinionResponse(BaseModel):
-    """Published opinion (admin view, includes disclosed_pii and score components)."""
+    """Published opinion (admin view, includes disclosed_pii, supporters, and score components)."""
 
     id: int
     raw_response_id: str
@@ -56,6 +56,8 @@ class PublishedOpinionResponse(BaseModel):
     urgency: int = 0
     expected_impact: int = 0
     supporter_points: int = 0
+    supporters: int = 0  # Number of upvotes (supporters count)
+    pending_upvotes_count: int = 0  # Upvotes not yet published/rejected (show "View / moderate" when > 0)
     disclosed_pii: dict | None = None
 
     class Config:
@@ -84,4 +86,37 @@ class OpinionUpdate(BaseModel):
             return v
         if not 0 <= v <= 2:
             raise ValueError("Must be between 0 and 2")
+        return v
+
+
+class UpvoteResponse(BaseModel):
+    """Upvote for moderation: list and update published_comment / status."""
+
+    id: int
+    opinion_id: int
+    user_hash: str
+    raw_comment: str | None
+    published_comment: str | None
+    status: str
+    created_at: str
+    is_disclosure_agreed: bool = False
+    disclosed_pii: dict | None = None  # Dept, Name, Email when is_disclosure_agreed
+
+    class Config:
+        from_attributes = True
+
+
+class UpvoteUpdate(BaseModel):
+    """Moderator: set published_comment and/or status (pending, published, rejected)."""
+
+    published_comment: str | None = None
+    status: str | None = None
+
+    @field_validator("status")
+    @classmethod
+    def status_enum(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if v not in ("pending", "published", "rejected"):
+            raise ValueError("Must be pending, published, or rejected")
         return v
