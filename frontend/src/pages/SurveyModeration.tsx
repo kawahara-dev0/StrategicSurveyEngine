@@ -14,6 +14,9 @@ import {
 import type { PublishOpinionPayload, PublishedOpinion, UpvoteItem } from "@/types/api";
 import { ArrowLeft, Send, FileText, Star, Pencil, Check, MessageSquare } from "lucide-react";
 
+/** Score component 0-2 to display label */
+const SCORE_LABELS: Record<number, string> = { 0: "Low", 1: "Medium", 2: "High" };
+
 /** Star rating from priority score (0-14): 12-14=5★, 9-11=4★, 6-8=3★, 3-5=2★, 0-2=1★ */
 function priorityStars(score: number): { full: number; label: string } {
   if (score >= 12) return { full: 5, label: "Immediate action recommended" };
@@ -169,6 +172,7 @@ export function SurveyModeration() {
   const [selectedResponseId, setSelectedResponseId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [adminNotes, setAdminNotes] = useState("");
   const [importance, setImportance] = useState(1);
   const [urgency, setUrgency] = useState(1);
   const [expectedImpact, setExpectedImpact] = useState(1);
@@ -224,6 +228,7 @@ export function SurveyModeration() {
       setSelectedResponseId(null);
       setTitle("");
       setContent("");
+      setAdminNotes("");
     },
   });
 
@@ -232,16 +237,18 @@ export function SurveyModeration() {
   const [editForm, setEditForm] = useState<{
     title: string;
     content: string;
+    admin_notes: string;
     importance: number;
     urgency: number;
     expected_impact: number;
     supporter_points: number;
-  }>({ title: "", content: "", importance: 0, urgency: 0, expected_impact: 0, supporter_points: 0 });
+  }>({ title: "", content: "", admin_notes: "", importance: 0, urgency: 0, expected_impact: 0, supporter_points: 0 });
   const updateOpinionMutation = useMutation({
     mutationFn: ({
       opinionId,
       title,
       content,
+      admin_notes,
       importance,
       urgency,
       expected_impact,
@@ -250,6 +257,7 @@ export function SurveyModeration() {
       opinionId: number;
       title: string;
       content: string;
+      admin_notes: string;
       importance: number;
       urgency: number;
       expected_impact: number;
@@ -258,6 +266,7 @@ export function SurveyModeration() {
       updateOpinion(surveyId!, opinionId, {
         title,
         content,
+        admin_notes: admin_notes.trim() || null,
         importance,
         urgency,
         expected_impact,
@@ -273,6 +282,7 @@ export function SurveyModeration() {
     setEditForm({
       title: o.title,
       content: o.content,
+      admin_notes: o.admin_notes ?? "",
       importance: o.importance ?? 0,
       urgency: o.urgency ?? 0,
       expected_impact: o.expected_impact ?? 0,
@@ -287,6 +297,7 @@ export function SurveyModeration() {
       raw_response_id: selectedResponseId,
       title: title.trim(),
       content: content.trim(),
+      admin_notes: adminNotes.trim() || null,
       importance,
       urgency,
       expected_impact: expectedImpact,
@@ -347,6 +358,7 @@ export function SurveyModeration() {
                         if (!isSelected) {
                           setTitle("");
                           setContent("");
+                          setAdminNotes("");
                         }
                       }}
                       className={`w-full text-left px-4 py-2 transition ${
@@ -410,6 +422,16 @@ export function SurveyModeration() {
                                     className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
                                     placeholder="Refined content for publication"
                                     required
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">Administrator Comments & Notes</label>
+                                  <textarea
+                                    value={adminNotes}
+                                    onChange={(e) => setAdminNotes(e.target.value)}
+                                    rows={2}
+                                    className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                                    placeholder="Internal notes (visible only on Manager dashboard and exports)"
                                   />
                                 </div>
                                 <div className="grid grid-cols-3 gap-2">
@@ -506,6 +528,16 @@ export function SurveyModeration() {
                           className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
                         />
                       </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-500 mb-0.5">Administrator Comments & Notes</label>
+                        <textarea
+                          value={editForm.admin_notes}
+                          onChange={(e) => setEditForm((f) => ({ ...f, admin_notes: e.target.value }))}
+                          rows={2}
+                          className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                          placeholder="Visible only on Manager dashboard and exports"
+                        />
+                      </div>
                       <div className="flex flex-wrap items-center gap-3">
                         <label className="text-xs font-medium text-slate-500">Imp</label>
                         <select
@@ -513,8 +545,8 @@ export function SurveyModeration() {
                           onChange={(e) => setEditForm((f) => ({ ...f, importance: Number(e.target.value) }))}
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
-                          {[0, 1, 2].map((i) => (
-                            <option key={i} value={i}>{i}</option>
+                          {([0, 1, 2] as const).map((i) => (
+                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
                           ))}
                         </select>
                         <label className="text-xs font-medium text-slate-500">Urg</label>
@@ -523,8 +555,8 @@ export function SurveyModeration() {
                           onChange={(e) => setEditForm((f) => ({ ...f, urgency: Number(e.target.value) }))}
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
-                          {[0, 1, 2].map((i) => (
-                            <option key={i} value={i}>{i}</option>
+                          {([0, 1, 2] as const).map((i) => (
+                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
                           ))}
                         </select>
                         <label className="text-xs font-medium text-slate-500">Impact</label>
@@ -533,8 +565,8 @@ export function SurveyModeration() {
                           onChange={(e) => setEditForm((f) => ({ ...f, expected_impact: Number(e.target.value) }))}
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
-                          {[0, 1, 2].map((i) => (
-                            <option key={i} value={i}>{i}</option>
+                          {([0, 1, 2] as const).map((i) => (
+                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
                           ))}
                         </select>
                         <label className="text-xs font-medium text-slate-500">Supporters</label>
@@ -543,8 +575,8 @@ export function SurveyModeration() {
                           onChange={(e) => setEditForm((f) => ({ ...f, supporter_points: Number(e.target.value) }))}
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
-                          {[0, 1, 2].map((i) => (
-                            <option key={i} value={i}>{i}</option>
+                          {([0, 1, 2] as const).map((i) => (
+                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
                           ))}
                         </select>
                         <span className="text-xs text-slate-500">
@@ -559,6 +591,7 @@ export function SurveyModeration() {
                               opinionId: o.id,
                               title: editForm.title,
                               content: editForm.content,
+                              admin_notes: editForm.admin_notes,
                               importance: editForm.importance,
                               urgency: editForm.urgency,
                               expected_impact: editForm.expected_impact,
@@ -621,6 +654,12 @@ export function SurveyModeration() {
                       <p className="text-sm text-slate-600 whitespace-pre-wrap mt-0.5">
                         {o.content}
                       </p>
+                      {o.admin_notes && o.admin_notes.trim() && (
+                        <div className="mt-2 rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
+                          <p className="text-xs font-medium text-slate-500 mb-0.5">Administrator Comments & Notes</p>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{o.admin_notes}</p>
+                        </div>
+                      )}
                       {o.disclosed_pii && Object.keys(o.disclosed_pii).length > 0 && (
                         <p className="text-xs text-slate-500 mt-0.5">
                           PII: {Object.entries(o.disclosed_pii).map(([k, v]) => `${k}=${v}`).join(", ")}

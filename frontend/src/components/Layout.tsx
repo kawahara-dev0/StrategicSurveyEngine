@@ -4,6 +4,8 @@ import { LayoutDashboard, PlusCircle } from "lucide-react";
 export function Layout() {
   const location = useLocation();
   const isContributorPage = location.pathname.startsWith("/survey/");
+  const isManagerPage = location.pathname.startsWith("/manager/");
+  const isAdminPage = location.pathname.startsWith("/admin");
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -20,12 +22,9 @@ export function Layout() {
               Strategic Survey Engine
             </Link>
           )}
-          {!isContributorPage && (
+          {!isContributorPage && !isManagerPage && isAdminPage && (
             <nav className="flex gap-4">
-              <Link
-                to="/"
-                className="text-slate-200 hover:text-white transition"
-              >
+              <Link to="/admin/" className="text-slate-200 hover:text-white transition">
                 Surveys
               </Link>
               <Link
@@ -43,7 +42,7 @@ export function Layout() {
         <Outlet />
       </main>
       <footer className="border-t border-slate-200 py-3 text-center text-sm text-slate-500">
-        {isContributorPage ? "Strategic Survey Engine" : "Strategic Survey Engine · Admin"}
+        {isContributorPage ? "Strategic Survey Engine" : isAdminPage ? "Strategic Survey Engine · Admin" : "Strategic Survey Engine"}
       </footer>
     </div>
   );

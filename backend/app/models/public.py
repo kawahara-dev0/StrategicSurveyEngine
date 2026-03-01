@@ -32,5 +32,5 @@ class Survey(Base):
     )
     contract_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     deletion_due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    access_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    access_code_plain: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

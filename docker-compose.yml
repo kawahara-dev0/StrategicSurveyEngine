@@ -27,8 +27,10 @@ services:
       dockerfile: Dockerfile
     container_name: strategic_survey_backend
     environment:
+      # Use db host inside Docker; root .env DATABASE_URL is for local runs only.
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/strategic_survey
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
     ports:
       - "8000:8000"
     depends_on:
@@ -44,8 +46,8 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
     environment:
+      # Browser calls API directly; fixed for Docker. Root .env VITE_API_URL is for local dev.
       VITE_API_URL: http://localhost:8000
-      VITE_ADMIN_API_KEY: ${VITE_ADMIN_API_KEY:-}
     ports:
       - "5173:5173"
     depends_on:

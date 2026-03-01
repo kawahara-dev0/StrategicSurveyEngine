@@ -18,6 +18,7 @@ class SurveyResponse(BaseModel):
     contract_end_date: date | None
     deletion_due_date: date | None
     notes: str | None = None
+    access_code: str | None = None  # Manager access code (admin only; null if not stored or after reset not yet done)
 
     class Config:
         from_attributes = True

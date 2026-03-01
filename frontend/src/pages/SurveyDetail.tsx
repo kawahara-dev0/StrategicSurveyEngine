@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listQuestions, createQuestion, getSurvey, deleteQuestion } from "@/lib/api";
+import { listQuestions, createQuestion, getSurvey, deleteQuestion, resetSurveyAccessCode } from "@/lib/api";
 import type { QuestionCreatePayload } from "@/types/api";
-import { ArrowLeft, Plus, ListChecks, Trash2, ExternalLink, Gavel } from "lucide-react";
+import { ArrowLeft, Plus, ListChecks, Trash2, ExternalLink, Gavel, Copy, Check, KeyRound } from "lucide-react";
 
 const QUESTION_TYPES: QuestionCreatePayload["question_type"][] = [
   "text",
@@ -11,6 +11,74 @@ const QUESTION_TYPES: QuestionCreatePayload["question_type"][] = [
   "select",
   "radio",
 ];
+
+function ManagerAccessCodeBlock({
+  surveyId,
+  survey,
+  queryClient,
+}: {
+  surveyId: string;
+  survey: { access_code?: string | null } | undefined;
+  queryClient: ReturnType<typeof import("@tanstack/react-query").useQueryClient>;
+}) {
+  const [copied, setCopied] = useState(false);
+  const resetMutation = useMutation({
+    mutationFn: () => resetSurveyAccessCode(surveyId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["survey", surveyId] });
+      navigator.clipboard.writeText(data.access_code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    },
+  });
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 mb-6">
+      <p className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1">
+        <KeyRound className="w-3.5 h-3.5" />
+        Manager access code
+      </p>
+      {survey?.access_code ? (
+        <div className="flex items-center gap-2">
+          <code className="flex-1 font-mono text-sm tracking-wider bg-white border border-slate-200 rounded px-2 py-1.5">
+            {survey.access_code}
+          </code>
+          <button
+            type="button"
+            onClick={() => copyCode(survey.access_code!)}
+            className="p-2 rounded border border-slate-300 hover:bg-slate-100 text-slate-600"
+            title="Copy"
+          >
+            {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-600">Not stored (or created before this feature).</span>
+          <button
+            type="button"
+            onClick={() => resetMutation.mutate()}
+            disabled={resetMutation.isPending}
+            className="px-3 py-1.5 rounded bg-slate-700 text-white text-sm hover:bg-slate-600 disabled:opacity-50"
+          >
+            {resetMutation.isPending ? "Resetting…" : "Reset access code"}
+          </button>
+          {resetMutation.isSuccess && copied && (
+            <span className="text-sm text-emerald-600">New code copied to clipboard.</span>
+          )}
+        </div>
+      )}
+      <p className="text-xs text-slate-500 mt-1.5">
+        Share with the manager to access the Manager dashboard. Keep it confidential.
+      </p>
+    </div>
+  );
+}
 
 export function SurveyDetail() {
   const { surveyId } = useParams<{ surveyId: string }>();
@@ -81,7 +149,7 @@ export function SurveyDetail() {
     <div>
       <button
         type="button"
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/admin/")}
         className="flex items-center gap-1 text-slate-600 hover:text-slate-900 mb-4"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -98,6 +166,9 @@ export function SurveyDetail() {
         </div>
       )}
       <p className="text-sm text-slate-500 mb-2">Survey ID: {surveyId}</p>
+
+      <ManagerAccessCodeBlock surveyId={surveyId!} survey={survey} queryClient={queryClient} />
+
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <a
           href={`/survey/${surveyId}/post`}

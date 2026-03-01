@@ -130,7 +130,7 @@ export function SurveyCreate() {
           </button>
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/admin/")}
             className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition"
           >
             Cancel

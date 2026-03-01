@@ -1,10 +1,58 @@
 const baseUrl = import.meta.env.VITE_API_URL || "/api";
 
+const ADMIN_KEY_SESSION_KEY = "admin_api_key_session";
+
+let adminKeyMemory: string | null = null;
+
+function getEffectiveAdminKey(): string {
+  try {
+    const session = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(ADMIN_KEY_SESSION_KEY) : null;
+    if (session) return session;
+  } catch {
+    // ignore
+  }
+  return adminKeyMemory ?? "";
+}
+
+export function setAdminKeyForSession(key: string): void {
+  adminKeyMemory = key;
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(ADMIN_KEY_SESSION_KEY, key);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearAdminKeySession(): void {
+  adminKeyMemory = null;
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(ADMIN_KEY_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** True if we have an admin key (from session or memory) to send with API requests. */
+export function hasAdminKey(): boolean {
+  return getEffectiveAdminKey().length > 0;
+}
+
+export async function verifyAdminPassword(password: string): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+  const r = await fetch(`${baseUrl}/admin/verify-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password: password.trim() }),
+  });
+  if (r.ok) return { ok: true };
+  const text = await r.text();
+  return { ok: false, status: r.status, message: text || r.statusText };
+}
+
 function headers(includeAdminKey = true): HeadersInit {
   const h: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const key = import.meta.env.VITE_ADMIN_API_KEY;
+  const key = getEffectiveAdminKey();
   if (includeAdminKey && key) h["X-Admin-API-Key"] = key;
   return h;
 }
@@ -50,6 +98,18 @@ export async function deleteSurvey(surveyId: string): Promise<void> {
     headers: headers(),
   });
   if (!r.ok) throw new Error(await r.text());
+}
+
+export async function resetSurveyAccessCode(
+  surveyId: string
+): Promise<{ access_code: string }> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(`${baseUrl}/admin/surveys/${id}/reset-access-code`, {
+    method: "POST",
+    headers: headers(),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
 }
 
 export async function deleteQuestion(
@@ -218,6 +278,7 @@ export async function updateOpinion(
   const body: Record<string, unknown> = {};
   if (payload.title !== undefined) body.title = payload.title;
   if (payload.content !== undefined) body.content = payload.content;
+  if (payload.admin_notes !== undefined) body.admin_notes = payload.admin_notes;
   if (payload.importance !== undefined) body.importance = payload.importance;
   if (payload.urgency !== undefined) body.urgency = payload.urgency;
   if (payload.expected_impact !== undefined) body.expected_impact = payload.expected_impact;
@@ -258,4 +319,102 @@ export async function updateUpvote(
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
+}
+
+/** Manager API (Phase 6): Access Code auth, dashboard, export */
+const MANAGER_TOKEN_KEY = "manager_token";
+
+export function getManagerToken(surveyId: string): string | null {
+  try {
+    return localStorage.getItem(`${MANAGER_TOKEN_KEY}_${normalizeSurveyId(surveyId)}`);
+  } catch {
+    return null;
+  }
+}
+
+export function setManagerToken(surveyId: string, token: string): void {
+  localStorage.setItem(`${MANAGER_TOKEN_KEY}_${normalizeSurveyId(surveyId)}`, token);
+}
+
+export function clearManagerToken(surveyId: string): void {
+  localStorage.removeItem(`${MANAGER_TOKEN_KEY}_${normalizeSurveyId(surveyId)}`);
+}
+
+export async function managerAuth(
+  surveyId: string,
+  accessCode: string
+): Promise<{ access_token: string; token_type: string }> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/manager/auth`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ survey_id: id, access_code: accessCode }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function managerHeaders(surveyId: string): HeadersInit {
+  const token = getManagerToken(surveyId);
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export async function getManagerSurvey(
+  surveyId: string
+): Promise<{ id: string; name: string }> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/manager/${id}/survey`, {
+    headers: managerHeaders(surveyId),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function listManagerOpinions(
+  surveyId: string
+): Promise<import("@/types/api").PublishedOpinion[]> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/manager/${id}/opinions`, {
+    headers: managerHeaders(surveyId),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function listManagerUpvotes(
+  surveyId: string,
+  opinionId: number
+): Promise<import("@/types/api").UpvoteItem[]> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/manager/${id}/opinions/${opinionId}/upvotes`, {
+    headers: managerHeaders(surveyId),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/** Parse filename from Content-Disposition header (e.g. attachment; filename="Report - Name.pdf"). */
+function filenameFromContentDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const m = header.match(/filename\*?=(?:UTF-8'')?"?([^";\n]+)"?/i);
+  return m ? m[1].trim().replace(/^["']|["']$/g, "") : null;
+}
+
+export async function exportManagerReport(
+  surveyId: string,
+  format: "xlsx" | "pdf"
+): Promise<{ blob: Blob; filename: string }> {
+  const id = normalizeSurveyId(surveyId);
+  const r = await fetch(`${baseUrl}/manager/${id}/export?format=${format}`, {
+    headers: managerHeaders(surveyId),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  const blob = await r.blob();
+  const filename =
+    filenameFromContentDisposition(r.headers.get("Content-Disposition")) ||
+    `Survey Opinions Report.${format}`;
+  return { blob, filename };
 }

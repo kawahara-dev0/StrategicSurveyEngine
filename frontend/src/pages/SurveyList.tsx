@@ -1,10 +1,20 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { listSurveys, deleteSurvey } from "@/lib/api";
-import { Calendar, FolderOpen, Trash2 } from "lucide-react";
+import { Calendar, FolderOpen, Trash2, Copy, Check } from "lucide-react";
 
 export function SurveyList() {
   const queryClient = useQueryClient();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyAccessCode = (e: React.MouseEvent, surveyId: string, code: string | null | undefined) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedId(surveyId);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
   const { data: surveys, isLoading, error } = useQuery({
     queryKey: ["surveys"],
     queryFn: listSurveys,
@@ -90,6 +100,15 @@ export function SurveyList() {
                   </span>
                 </div>
               </Link>
+              <button
+                type="button"
+                onClick={(e) => copyAccessCode(e, s.id, s.access_code)}
+                className="px-3 py-4 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition disabled:opacity-40"
+                title={s.access_code ? "Copy Manager access code" : "No access code stored (reset in survey detail)"}
+                disabled={!s.access_code}
+              >
+                {copiedId === s.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              </button>
               <button
                 type="button"
                 onClick={(e) => handleDeleteSurvey(e, s.id, s.name)}

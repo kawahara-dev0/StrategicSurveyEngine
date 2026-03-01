@@ -2,6 +2,7 @@
 import re
 from uuid import UUID
 
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import ProgrammingError
@@ -25,7 +26,7 @@ from app.schemas.moderation import (
     _score_from_components,
 )
 from app.schemas.survey import SurveyCreate, SurveyCreateResponse, SurveyResponse
-from app.services.survey_provisioning import create_survey, delete_survey
+from app.services.survey_provisioning import create_survey, delete_survey, _generate_access_code
 
 
 def _require_admin(admin_api_key: str | None = Header(default=None, alias="X-Admin-API-Key")):
@@ -36,6 +37,24 @@ def _require_admin(admin_api_key: str | None = Header(default=None, alias="X-Adm
 
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+class _VerifyPasswordBody(BaseModel):
+    password: str = ""
+
+
+@router.post("/verify-password")
+def verify_admin_password(body: _VerifyPasswordBody) -> None:
+    """
+    Verify the admin password (for frontend login when VITE_ADMIN_API_KEY is not set, e.g. in Docker).
+    Returns 200 if password matches ADMIN_API_KEY, 401 if not, 404 if admin is not configured.
+    """
+    if not settings.admin_api_key:
+        raise HTTPException(status_code=404, detail="Admin access is not configured on the server")
+    password = (body.password or "").strip()
+    if password != settings.admin_api_key:
+        raise HTTPException(status_code=401, detail="Incorrect password")
+    return None
 
 
 @router.post("/surveys", response_model=SurveyCreateResponse)
@@ -79,6 +98,7 @@ async def list_surveys(
             contract_end_date=s.contract_end_date,
             deletion_due_date=s.deletion_due_date,
             notes=s.notes,
+            access_code=getattr(s, "access_code_plain", None),
         )
         for s in surveys
     ]
@@ -104,7 +124,27 @@ async def get_survey(
         contract_end_date=survey.contract_end_date,
         deletion_due_date=survey.deletion_due_date,
         notes=survey.notes,
+        access_code=getattr(survey, "access_code_plain", None),
     )
+
+
+@router.post("/surveys/{survey_id}/reset-access-code")
+async def reset_access_code(
+    survey_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """Generate a new Manager access code for the survey. Returns the new code (store it securely)."""
+    await db.execute(text("SET search_path TO public"))
+    result = await db.execute(select(Survey).where(Survey.id == survey_id))
+    survey = result.scalar_one_or_none()
+    if not survey:
+        raise HTTPException(status_code=404, detail="Survey not found")
+    new_code = _generate_access_code()
+    survey.access_code_plain = new_code
+    await db.flush()
+    await db.refresh(survey)
+    return {"access_code": new_code}
 
 
 @router.delete("/surveys/{survey_id}")
@@ -329,6 +369,8 @@ async def update_opinion(
         opinion.title = body.title
     if body.content is not None:
         opinion.content = body.content
+    if body.admin_notes is not None:
+        opinion.admin_notes = (body.admin_notes or "").strip() or None
     if body.importance is not None:
         opinion.importance = body.importance
     if body.urgency is not None:
@@ -350,6 +392,7 @@ async def update_opinion(
         raw_response_id=str(opinion.raw_response_id),
         title=opinion.title,
         content=opinion.content,
+        admin_notes=opinion.admin_notes,
         priority_score=opinion.priority_score,
         importance=opinion.importance,
         urgency=opinion.urgency,
@@ -403,6 +446,7 @@ async def list_opinions_alt(
             raw_response_id=str(o.raw_response_id),
             title=o.title,
             content=o.content,
+            admin_notes=getattr(o, "admin_notes", None),
             priority_score=o.priority_score,
             importance=getattr(o, "importance", 0),
             urgency=getattr(o, "urgency", 0),
@@ -504,7 +548,7 @@ async def create_opinion(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(_require_admin),
 ):
-    """Create published_opinion from a raw response. Builds disclosed_pii from PII answers with consent."""
+    """Create published_opinion from a raw response. Builds disclosed_pii from PII answers with consent (order follows question order)."""
     schema_name = await _get_tenant_schema(db, survey_id)
     await db.execute(text(f"SET search_path TO {schema_name}"))
     result = await db.execute(
@@ -515,10 +559,16 @@ async def create_opinion(
     response = result.scalar_one_or_none()
     if not response:
         raise HTTPException(status_code=404, detail="Raw response not found")
+    questions_result = await db.execute(
+        select(Question).where(Question.survey_id == survey_id, Question.is_personal_data.is_(True)).order_by(Question.id)
+    )
+    pii_questions = questions_result.scalars().all()
+    answers_by_qid = {a.question_id: a for a in response.raw_answers}
     disclosed_pii = {}
-    for a in response.raw_answers:
-        if a.question.is_personal_data and a.is_disclosure_agreed and a.answer_text.strip():
-            disclosed_pii[a.question.label] = a.answer_text.strip()
+    for q in pii_questions:
+        a = answers_by_qid.get(q.id)
+        if a and a.is_disclosure_agreed and a.answer_text and a.answer_text.strip():
+            disclosed_pii[q.label] = a.answer_text.strip()
     supporter_count = 0  # Phase 5 will add upvotes
     supporter_pts = _supporters_pts_from_count(supporter_count)
     priority = _priority_score(
@@ -531,6 +581,7 @@ async def create_opinion(
         raw_response_id=response.id,
         title=body.title,
         content=body.content,
+        admin_notes=(body.admin_notes or "").strip() or None,
         priority_score=priority,
         importance=body.importance,
         urgency=body.urgency,
@@ -546,6 +597,7 @@ async def create_opinion(
         raw_response_id=str(opinion.raw_response_id),
         title=opinion.title,
         content=opinion.content,
+        admin_notes=opinion.admin_notes,
         priority_score=opinion.priority_score,
         importance=opinion.importance,
         urgency=opinion.urgency,
@@ -599,6 +651,7 @@ async def list_opinions(
             raw_response_id=str(o.raw_response_id),
             title=o.title,
             content=o.content,
+            admin_notes=getattr(o, "admin_notes", None),
             priority_score=o.priority_score,
             importance=getattr(o, "importance", 0),
             urgency=getattr(o, "urgency", 0),

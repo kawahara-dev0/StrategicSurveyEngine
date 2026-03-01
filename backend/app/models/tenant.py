@@ -100,6 +100,7 @@ class PublishedOpinion(Base):
     expected_impact: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
     supporter_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
     disclosed_pii: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

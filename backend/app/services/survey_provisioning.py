@@ -5,7 +5,6 @@ import string
 from datetime import date, timedelta
 from uuid import UUID, uuid4
 
-import bcrypt
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,6 +65,7 @@ def _tenant_ddl_statements(schema: str) -> list[str]:
             expected_impact INTEGER NOT NULL DEFAULT 0,
             supporter_points INTEGER NOT NULL DEFAULT 0,
             disclosed_pii JSONB,
+            admin_notes TEXT,
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
         )""",
         f"""CREATE TABLE {s}.upvotes (
@@ -100,9 +100,6 @@ async def create_survey(
     _validate_schema_name(schema_name)
 
     access_code = _generate_access_code()
-    # bcrypt は 72 バイトまで。バイト列に変換して切り詰める
-    pw_bytes = access_code.encode("utf-8")[:72]
-    access_code_hash = bcrypt.hashpw(pw_bytes, bcrypt.gensalt()).decode("ascii")
 
     # Ensure we're in public schema for DDL and survey insert
     await db.execute(text("SET search_path TO public"))
@@ -123,7 +120,7 @@ async def create_survey(
         status=SurveyStatus.active,
         contract_end_date=contract_end,
         deletion_due_date=deletion_due,
-        access_code_hash=access_code_hash,
+        access_code_plain=access_code,
         notes=notes,
     )
     db.add(survey)

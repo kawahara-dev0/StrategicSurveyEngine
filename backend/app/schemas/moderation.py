@@ -32,6 +32,7 @@ class PublishOpinionCreate(BaseModel):
     raw_response_id: str
     title: str
     content: str
+    admin_notes: str | None = None
     importance: int = 0  # 0-2
     urgency: int = 0  # 0-2
     expected_impact: int = 0  # 0-2
@@ -51,6 +52,7 @@ class PublishedOpinionResponse(BaseModel):
     raw_response_id: str
     title: str
     content: str
+    admin_notes: str | None = None
     priority_score: int
     importance: int = 0
     urgency: int = 0
@@ -70,10 +72,11 @@ def _score_from_components(importance: int, urgency: int, expected_impact: int, 
 
 
 class OpinionUpdate(BaseModel):
-    """Update title, content, and/or score components (Imp, Urg, Impact, supporters 0-2) for a published opinion."""
+    """Update title, content, admin_notes, and/or score components (Imp, Urg, Impact, supporters 0-2) for a published opinion."""
 
     title: str | None = None
     content: str | None = None
+    admin_notes: str | None = None
     importance: int | None = None
     urgency: int | None = None
     expected_impact: int | None = None

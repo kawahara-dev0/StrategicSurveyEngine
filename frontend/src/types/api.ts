@@ -6,6 +6,8 @@ export interface Survey {
   contract_end_date: string | null;
   deletion_due_date: string | null;
   notes?: string | null;
+  /** Manager access code (admin only; null if not stored). */
+  access_code?: string | null;
 }
 
 export interface SurveyCreateResponse extends Survey {
@@ -71,6 +73,7 @@ export interface PublishOpinionPayload {
   raw_response_id: string;
   title: string;
   content: string;
+  admin_notes?: string | null;
   importance: number;
   urgency: number;
   expected_impact: number;
@@ -81,6 +84,7 @@ export interface PublishedOpinion {
   raw_response_id: string;
   title: string;
   content: string;
+  admin_notes?: string | null;
   priority_score: number;
   importance: number;
   urgency: number;
@@ -94,6 +98,7 @@ export interface PublishedOpinion {
 export interface OpinionUpdatePayload {
   title?: string;
   content?: string;
+  admin_notes?: string | null;
   importance?: number;
   urgency?: number;
   expected_impact?: number;

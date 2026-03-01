@@ -34,11 +34,15 @@ docker compose up -d
 - **API docs**: http://localhost:8000/docs  
 - **Health**: http://localhost:8000/health  
 
-Optional: copy `.env.example` to `.env` and set `ADMIN_API_KEY` / `VITE_ADMIN_API_KEY` if you want to protect the Admin API.
+Optional: copy **project root** `.env.example` to `.env` and set `ADMIN_API_KEY` (and optionally `VITE_API_URL`, `VITE_ADMIN_API_KEY`). Docker Compose reads only the `.env` in the same directory as `docker-compose.yml`.
 
 ```bash
 docker compose down   # stop all
 ```
+
+### Environment variables (.env)
+
+Use **only the project root `.env`** for Docker Compose and local dev (backend and frontend). Copy root `.env.example` to `.env` and set values as needed.
 
 ---
 
