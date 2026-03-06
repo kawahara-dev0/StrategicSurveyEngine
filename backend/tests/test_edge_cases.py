@@ -2,8 +2,8 @@
 Edge cases: boundary values (0, max), invalid types, error handling.
 """
 
-import pytest
 from httpx import ASGITransport, AsyncClient
+import pytest
 
 from app.main import app
 
