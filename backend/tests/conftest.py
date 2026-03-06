@@ -14,7 +14,7 @@ from app.main import app
 _created_survey_ids: list[str] = []
 
 
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+def pytest_sessionfinish(_session: pytest.Session, _exitstatus: int) -> None:
     """After all tests, delete surveys created during the test run."""
     if not _created_survey_ids or not settings.admin_api_key:
         return
