@@ -192,10 +192,7 @@ function QuestionField({
 }) {
   const fieldId = `question-${question.id}`;
   const label = (
-    <label
-      htmlFor={fieldId}
-      className="block text-sm font-medium text-slate-700 mb-1"
-    >
+    <label htmlFor={fieldId} className="block text-sm font-medium text-slate-700 mb-1">
       {question.label}
       {question.is_required && <span className="text-red-500 ml-1">*</span>}
       {question.is_personal_data && (

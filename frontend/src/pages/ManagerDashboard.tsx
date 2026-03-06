@@ -41,9 +41,7 @@ function ManagerUpvotes({ surveyId, opinionId }: { surveyId: string; opinionId: 
   });
   const withComment = upvotes.filter(
     (u: UpvoteItem) =>
-      u.status === "published" &&
-      u.published_comment != null &&
-      u.published_comment.trim() !== ""
+      u.status === "published" && u.published_comment != null && u.published_comment.trim() !== ""
   );
   if (withComment.length === 0) return null;
   return (

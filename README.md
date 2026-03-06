@@ -92,6 +92,15 @@ pytest tests/ -v
 
 ### Lint & type check
 
+**With Docker** (recommended if no local Python):
+
+```bash
+docker compose exec backend ruff check . && docker compose exec backend ruff format --check .
+docker compose exec backend mypy app
+```
+
+**Locally** (Python 3.11+):
+
 ```bash
 pip install -r requirements-dev.txt
 ruff check . && ruff format --check .

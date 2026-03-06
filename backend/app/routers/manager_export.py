@@ -137,7 +137,11 @@ def build_xlsx(
                 nc,  # D列: Name:~
                 ne,  # E列: Email:~
                 nd,  # F列: Dept.:~
-                "", "", "", "", "",  # Imp through Supporters
+                "",
+                "",
+                "",
+                "",
+                "",  # Imp through Supporters
             ]
             for _ in pii_cols:
                 comment_row.append("")
@@ -221,10 +225,10 @@ def build_pdf(
                     continue
                 line = f"- {comment}"
                 if u.is_disclosure_agreed and u.disclosed_pii:
-                    pii = u.disclosed_pii
+                    upvote_pii = u.disclosed_pii
                     parts = []
                     for k in ("Name", "Email", "Department"):
-                        if v := pii.get(k):
+                        if v := upvote_pii.get(k):
                             label = "Dept." if k == "Department" else k
                             parts.append(f"{label}: {v}")
                     if parts:
@@ -234,8 +238,10 @@ def build_pdf(
                 story.append(Spacer(1, 6))
                 story.append(
                     Paragraph(
-                        f"<i>Additional comments:</i><br/>"
-                        + "<br/>".join(c.replace("&", "&amp;").replace("<", "&lt;") for c in comments_lines),
+                        "<i>Additional comments:</i><br/>"
+                        + "<br/>".join(
+                            c.replace("&", "&amp;").replace("<", "&lt;") for c in comments_lines
+                        ),
                         styles["Normal"],
                     )
                 )

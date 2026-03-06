@@ -5,10 +5,9 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-
 from app.config import settings
 from app.main import app
+from httpx import ASGITransport, AsyncClient
 
 # Survey IDs created during tests (for cleanup)
 _created_survey_ids: list[str] = []
@@ -18,12 +17,14 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """After all tests, delete surveys created during the test run."""
     if not _created_survey_ids or not settings.admin_api_key:
         return
+
     async def _cleanup() -> None:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             ac.headers["X-Admin-API-Key"] = settings.admin_api_key
             for survey_id in _created_survey_ids:
                 await ac.delete(f"/admin/surveys/{survey_id}")
+
     asyncio.run(_cleanup())
 
 
@@ -57,5 +58,5 @@ async def admin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]
                 _created_survey_ids.append(str(data["id"]))
         return resp
 
-    client.post = tracking_post
+    client.post = tracking_post  # type: ignore[method-assign]
     yield client
