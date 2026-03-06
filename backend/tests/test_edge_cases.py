@@ -2,10 +2,9 @@
 Edge cases: boundary values (0, max), invalid types, error handling.
 """
 
-from httpx import ASGITransport, AsyncClient
 import pytest
-
 from app.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 async def test_submit_invalid_survey_id(client: AsyncClient) -> None:

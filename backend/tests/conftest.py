@@ -3,12 +3,11 @@
 import asyncio
 from collections.abc import AsyncGenerator
 
-from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
-
 from app.config import settings
 from app.main import app
+from httpx import ASGITransport, AsyncClient
 
 # Survey IDs created during tests (for cleanup)
 _created_survey_ids: list[str] = []
