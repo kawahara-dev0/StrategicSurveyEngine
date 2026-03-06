@@ -103,8 +103,9 @@ function UpvotesSection({
                   u.disclosed_pii &&
                   Object.keys(u.disclosed_pii).length > 0 && (
                     <p className="text-slate-600 mb-1 text-xs">
-                      Name: {u.disclosed_pii["Name"] ?? "—"}, Email: {u.disclosed_pii["Email"] ?? "—"}
-                      , Department: {u.disclosed_pii["Department"] ?? "—"}
+                      Name: {u.disclosed_pii["Name"] ?? "—"}, Email:{" "}
+                      {u.disclosed_pii["Email"] ?? "—"}, Department:{" "}
+                      {u.disclosed_pii["Department"] ?? "—"}
                     </p>
                   )}
                 <div className="flex flex-wrap items-center gap-2 mb-1">
