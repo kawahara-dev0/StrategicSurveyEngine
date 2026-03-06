@@ -225,10 +225,10 @@ def build_pdf(
                     continue
                 line = f"- {comment}"
                 if u.is_disclosure_agreed and u.disclosed_pii:
-                    pii = u.disclosed_pii
+                    upvote_pii = u.disclosed_pii
                     parts = []
                     for k in ("Name", "Email", "Department"):
-                        if v := pii.get(k):
+                        if v := upvote_pii.get(k):
                             label = "Dept." if k == "Department" else k
                             parts.append(f"{label}: {v}")
                     if parts:
