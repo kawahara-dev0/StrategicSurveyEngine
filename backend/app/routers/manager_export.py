@@ -137,7 +137,11 @@ def build_xlsx(
                 nc,  # D列: Name:~
                 ne,  # E列: Email:~
                 nd,  # F列: Dept.:~
-                "", "", "", "", "",  # Imp through Supporters
+                "",
+                "",
+                "",
+                "",
+                "",  # Imp through Supporters
             ]
             for _ in pii_cols:
                 comment_row.append("")
@@ -235,7 +239,9 @@ def build_pdf(
                 story.append(
                     Paragraph(
                         "<i>Additional comments:</i><br/>"
-                        + "<br/>".join(c.replace("&", "&amp;").replace("<", "&lt;") for c in comments_lines),
+                        + "<br/>".join(
+                            c.replace("&", "&amp;").replace("<", "&lt;") for c in comments_lines
+                        ),
                         styles["Normal"],
                     )
                 )

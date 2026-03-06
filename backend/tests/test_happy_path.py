@@ -96,7 +96,11 @@ async def test_survey_submit_full_flow(admin_client: AsyncClient, client: AsyncC
         f"/survey/{survey_id}/submit",
         json={
             "answers": [
-                {"question_id": question_id, "answer_text": "Great product!", "is_disclosure_agreed": False},
+                {
+                    "question_id": question_id,
+                    "answer_text": "Great product!",
+                    "is_disclosure_agreed": False,
+                },
             ],
         },
     )
@@ -111,9 +115,7 @@ async def test_survey_submit_full_flow(admin_client: AsyncClient, client: AsyncC
     assert len(responses) >= 1
 
     # Get response detail
-    detail_resp = await admin_client.get(
-        f"/admin/surveys/{survey_id}/responses/{response_id}"
-    )
+    detail_resp = await admin_client.get(f"/admin/surveys/{survey_id}/responses/{response_id}")
     assert detail_resp.status_code == 200
 
     # Publish opinion

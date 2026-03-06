@@ -17,12 +17,14 @@ def pytest_sessionfinish(_session: pytest.Session, _exitstatus: int) -> None:
     """After all tests, delete surveys created during the test run."""
     if not _created_survey_ids or not settings.admin_api_key:
         return
+
     async def _cleanup() -> None:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             ac.headers["X-Admin-API-Key"] = settings.admin_api_key
             for survey_id in _created_survey_ids:
                 await ac.delete(f"/admin/surveys/{survey_id}")
+
     asyncio.run(_cleanup())
 
 
