@@ -3,7 +3,9 @@ Edge cases: boundary values (0, max), invalid types, error handling.
 """
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
+
+from app.main import app
 
 
 async def test_submit_invalid_survey_id(client: AsyncClient) -> None:
@@ -43,10 +45,6 @@ async def test_publish_opinion_invalid_score_schema(admin_client: AsyncClient) -
         f"/admin/surveys/{survey_id}/questions",
         json={"label": "Q", "question_type": "text", "is_required": True},
     )
-
-    from httpx import ASGITransport
-
-    from app.main import app
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as pub:

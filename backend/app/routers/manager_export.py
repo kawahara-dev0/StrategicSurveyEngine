@@ -234,7 +234,7 @@ def build_pdf(
                 story.append(Spacer(1, 6))
                 story.append(
                     Paragraph(
-                        f"<i>Additional comments:</i><br/>"
+                        "<i>Additional comments:</i><br/>"
                         + "<br/>".join(c.replace("&", "&amp;").replace("<", "&lt;") for c in comments_lines),
                         styles["Normal"],
                     )
