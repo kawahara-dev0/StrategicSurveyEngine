@@ -58,5 +58,5 @@ async def admin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]
                 _created_survey_ids.append(str(data["id"]))
         return resp
 
-    client.post = tracking_post
+    client.post = tracking_post  # type: ignore[method-assign]
     yield client
