@@ -1,4 +1,5 @@
-"""Submission API schemas (Phase 3: Contributor Submission)."""
+"""Submission API schemas (contributor submission)."""
+
 from pydantic import BaseModel, field_validator
 
 

@@ -1,16 +1,18 @@
 """Public schema: shared metadata and survey lifecycle (surveys table)."""
+
 import enum
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import Date, Enum as SQLEnum, String, Text
+from sqlalchemy import Date, String, Text
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, date_col
+from app.models.base import Base
 
 
-class SurveyStatus(str, enum.Enum):
+class SurveyStatus(enum.StrEnum):
     active = "active"
     suspended = "suspended"
     deleted = "deleted"

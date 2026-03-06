@@ -17,10 +17,12 @@ This system implements a **Schema-per-Survey** architecture in PostgreSQL to ens
 | :--- | :--- | :--- |
 | id | UUID (PK) | Unique identifier for the survey project. |
 | name | String | Name of the survey. |
-| schema_name | String (Unique) | The physical PG schema name (e.g., survey_a_123). |
+| schema_name | String (Unique) | The physical PG schema name (e.g., survey_550e8400). |
 | status | Enum | active, suspended, deleted. |
-| contract_end_date | Date | End of the 30-day billing cycle. |
+| contract_end_date | Date | End of the contract/billing period (default: +30 days from creation). |
 | deletion_due_date | Date | contract_end_date + 90 days (Hard deletion trigger). |
+| access_code_plain | String (Null) | Plain-text access code for Manager dashboard (generated on survey creation). |
+| notes | Text (Null) | Admin notes. |
 
 ---
 
@@ -60,8 +62,14 @@ The following tables are dynamically created within each survey-specific schema.
 | raw_response_id | UUID (FK) | For Moderator traceability back to raw data. |
 | title | String | Anonymized summary title created by Moderator. |
 | content | Text | Refined and filtered content by Moderator. |
-| priority_score | Int | 0-14 calculated score. |
+| priority_score | Int | 0-14 calculated score: (importance+urgency+expected_impact)\*2 + supporter_points. |
+| importance | Int | 0-2 (Importance criterion). |
+| urgency | Int | 0-2 (Urgency criterion). |
+| expected_impact | Int | 0-2 (Expected Impact criterion). |
+| supporter_points | Int | 0-2 (Number of Supporters criterion). |
 | disclosed_pii | JSONB (Null) | Stores {name, dept, email} ONLY if is_disclosure_agreed was TRUE. |
+| admin_notes | Text (Null) | Moderator notes. |
+| updated_at | Timestamp | Last update time. |
 
 #### `upvotes` (Tenant Schema)
 | Column | Type | Description |
@@ -108,11 +116,11 @@ The following tables are dynamically created within each survey-specific schema.
    - **Security**: The UUID itself acts as the authorization to submit responses. No password required.
 2. **Survey Manager (Client HR)**:
    - **Access Method**: Access via `https://domain.com/manager/[survey_uuid]`.
-   - **Security**: Requires both the **Survey UUID** and a specific **Access Code** (Password).
+   - **Security**: Requires both the **Survey UUID** and a specific **Access Code** (generated per survey).
    - **Session**: Upon successful validation, a JWT containing `survey_id` and `schema_name` is issued.
 3. **Super Admin**:
    - **Access Method**: Access via `https://domain.com/admin`.
-   - **Security**: Requires a Master Admin Password.
+   - **Security**: Requires **Admin API Key** (`X-Admin-API-Key` header) or password verification against the same secret.
 
 ### 5.2 Schema Switching Mechanism
 - For every request to `/survey/` or `/manager/`, the backend identifies the target `schema_name` from the `public.surveys` table using the `survey_uuid`.

@@ -32,7 +32,7 @@ export interface QuestionCreatePayload {
   is_personal_data?: boolean;
 }
 
-/** Public API: survey form for contributors (Phase 3) */
+/** Public API: survey form for contributors */
 export interface SurveyQuestionsResponse {
   survey_name: string;
   status: string;
@@ -50,7 +50,7 @@ export interface SubmitResponse {
   message: string;
 }
 
-/** Moderation (Phase 4) */
+/** Moderation */
 export interface RawResponseListItem {
   id: string;
   submitted_at: string;
@@ -105,7 +105,7 @@ export interface OpinionUpdatePayload {
   supporter_points?: number;
 }
 
-/** Public API: published opinions (Phase 5) – no PII; includes supporters and approved comments */
+/** Public API: published opinions – no PII; includes supporters and approved comments */
 export interface PublicOpinionItem {
   id: number;
   title: string;

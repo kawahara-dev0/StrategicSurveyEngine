@@ -42,7 +42,11 @@ export function Layout() {
         <Outlet />
       </main>
       <footer className="border-t border-slate-200 py-3 text-center text-sm text-slate-500">
-        {isContributorPage ? "Strategic Survey Engine" : isAdminPage ? "Strategic Survey Engine · Admin" : "Strategic Survey Engine"}
+        {isContributorPage
+          ? "Strategic Survey Engine"
+          : isAdminPage
+            ? "Strategic Survey Engine · Admin"
+            : "Strategic Survey Engine"}
       </footer>
     </div>
   );

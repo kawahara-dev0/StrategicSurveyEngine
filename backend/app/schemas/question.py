@@ -1,5 +1,6 @@
 """Question API schemas."""
-from pydantic import BaseModel, field_validator
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class QuestionCreate(BaseModel):
@@ -27,5 +28,4 @@ class QuestionResponse(BaseModel):
     is_required: bool
     is_personal_data: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

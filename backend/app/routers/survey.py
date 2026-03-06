@@ -1,5 +1,7 @@
-"""Public Survey API: contributor submission (Phase 3), opinions & search (Phase 5). No auth; UUID in path."""
+"""Public Survey API: contributor submission, opinions and search. No auth; UUID in path."""
+
 import hashlib
+from collections.abc import Sequence
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -9,10 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.public import Survey, SurveyStatus
-from app.models.tenant import Question, RawAnswer, RawResponse, PublishedOpinion, Upvote, UpvoteStatus
+from app.models.tenant import (
+    PublishedOpinion,
+    Question,
+    RawAnswer,
+    RawResponse,
+    Upvote,
+    UpvoteStatus,
+)
 from app.schemas.public_opinion import PublicOpinionItem, UpvoteCreate
 from app.schemas.question import QuestionResponse
-from app.schemas.submission import AnswerSubmit, SubmitRequest, SubmitResponse
+from app.schemas.submission import SubmitRequest, SubmitResponse
 
 router = APIRouter(prefix="/survey", tags=["survey"])
 
@@ -105,9 +114,7 @@ async def submit_survey_response(
     await db.execute(text(f"SET search_path TO {schema_name}"))
 
     # Load questions for validation
-    q_result = await db.execute(
-        select(Question).where(Question.survey_id == survey_id)
-    )
+    q_result = await db.execute(select(Question).where(Question.survey_id == survey_id))
     questions = {q.id: q for q in q_result.scalars().all()}
     if not questions:
         raise HTTPException(status_code=400, detail="Survey has no questions yet.")
@@ -154,7 +161,7 @@ async def submit_survey_response(
 
 
 def _opinions_to_public_items(
-    opinions: list,
+    opinions: Sequence[PublishedOpinion],
     upvotes_by_opinion: dict,
     supporters_by_opinion: dict[int, int],
     supported_opinion_ids: set[int] | None = None,
@@ -199,7 +206,9 @@ async def list_public_opinions(
     await db.execute(text(f"SET search_path TO {schema_name}"))
     try:
         o_result = await db.execute(
-            select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
+            select(PublishedOpinion).order_by(
+                PublishedOpinion.updated_at.desc(), PublishedOpinion.id
+            )
         )
         opinions = o_result.scalars().all()
     except ProgrammingError:
@@ -233,8 +242,7 @@ async def list_public_opinions(
         .group_by(Upvote.opinion_id)
     )
     supporters_by_opinion = {
-        row[0]: int(row[1]) if row[1] is not None else 0
-        for row in supporters_result.all()
+        row[0]: int(row[1]) if row[1] is not None else 0 for row in supporters_result.all()
     }
     return _opinions_to_public_items(
         opinions, upvotes_by_opinion, supporters_by_opinion, supported_opinion_ids
@@ -263,7 +271,9 @@ async def search_public_opinions(
     try:
         if not query:
             o_result = await db.execute(
-                select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
+                select(PublishedOpinion).order_by(
+                    PublishedOpinion.updated_at.desc(), PublishedOpinion.id
+                )
             )
             opinions = o_result.scalars().all()
         else:
@@ -280,7 +290,16 @@ async def search_public_opinions(
             )
             rows = raw.mappings().all()
             opinions = [
-                type("_OpinionRow", (), {"id": r["id"], "title": r["title"], "content": r["content"], "priority_score": r["priority_score"]})()
+                type(
+                    "_OpinionRow",
+                    (),
+                    {
+                        "id": r["id"],
+                        "title": r["title"],
+                        "content": r["content"],
+                        "priority_score": r["priority_score"],
+                    },
+                )()
                 for r in rows
             ]
     except ProgrammingError:
@@ -313,8 +332,7 @@ async def search_public_opinions(
         .group_by(Upvote.opinion_id)
     )
     supporters_by_opinion = {
-        row[0]: int(row[1]) if row[1] is not None else 0
-        for row in supporters_result.all()
+        row[0]: int(row[1]) if row[1] is not None else 0 for row in supporters_result.all()
     }
     return _opinions_to_public_items(
         opinions, upvotes_by_opinion, supporters_by_opinion, supported_opinion_ids
@@ -327,7 +345,7 @@ def _user_hash_from_request(request: Request) -> str:
     ua = request.headers.get("user-agent", "") or ""
     xff = request.headers.get("x-forwarded-for", "")
     ip = xff.split(",")[0].strip() if xff else client
-    raw = f"{ip}:{ua}".encode("utf-8")
+    raw = f"{ip}:{ua}".encode()
     return hashlib.sha256(raw).hexdigest()[:64]
 
 
@@ -361,12 +379,12 @@ async def create_upvote(
         raise HTTPException(status_code=409, detail="Already voted for this opinion")
     disclosed_pii = {}
     if body.is_disclosure_agreed:
-        if body.dept and body.dept.strip():
-            disclosed_pii["Dept"] = body.dept.strip()
         if body.name and body.name.strip():
             disclosed_pii["Name"] = body.name.strip()
         if body.email and body.email.strip():
             disclosed_pii["Email"] = body.email.strip()
+        if body.dept and body.dept.strip():
+            disclosed_pii["Department"] = body.dept.strip()
     raw_comment = body.comment.strip() if body.comment and body.comment.strip() else None
     status = UpvoteStatus.published if raw_comment is None else UpvoteStatus.pending
     upvote = Upvote(
@@ -379,4 +397,7 @@ async def create_upvote(
     )
     db.add(upvote)
     await db.commit()
-    return {"status": "ok", "message": "Vote recorded. Comment will appear after moderator approval."}
+    return {
+        "status": "ok",
+        "message": "Vote recorded. Comment will appear after moderator approval.",
+    }

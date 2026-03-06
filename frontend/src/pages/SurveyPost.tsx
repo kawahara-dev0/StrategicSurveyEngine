@@ -19,8 +19,7 @@ export function SurveyPost() {
   });
 
   const submitMutation = useMutation({
-    mutationFn: (payload: AnswerSubmit[]) =>
-      submitSurveyResponse(surveyId!, payload),
+    mutationFn: (payload: AnswerSubmit[]) => submitSurveyResponse(surveyId!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["survey-questions", surveyId] });
       setSubmitted(true);
@@ -108,9 +107,7 @@ export function SurveyPost() {
           Back
         </button>
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-          <h2 className="text-lg font-semibold text-amber-900 mb-2">
-            Submissions are closed
-          </h2>
+          <h2 className="text-lg font-semibold text-amber-900 mb-2">Submissions are closed</h2>
           <p className="text-amber-800">
             This survey (&quot;{data.survey_name}&quot;) is not currently accepting new responses.
           </p>
@@ -130,9 +127,7 @@ export function SurveyPost() {
         Back
       </button>
 
-      <h1 className="text-xl font-semibold text-slate-800 mb-1">
-        {data.survey_name}
-      </h1>
+      <h1 className="text-xl font-semibold text-slate-800 mb-1">{data.survey_name}</h1>
       <p className="text-sm text-slate-500 mb-6">Share your feedback</p>
 
       <form
@@ -158,7 +153,8 @@ export function SurveyPost() {
               onChange={(e) => setDisclosureAgreed(e.target.checked)}
               className="rounded border-slate-300"
             />
-            I agree to disclose my personal information (above) to managers for evaluation or hearings.
+            I agree to disclose my personal information (above) to managers for evaluation or
+            hearings.
           </label>
         )}
 
@@ -194,12 +190,14 @@ function QuestionField({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const fieldId = `question-${question.id}`;
   const label = (
-    <label className="block text-sm font-medium text-slate-700 mb-1">
+    <label
+      htmlFor={fieldId}
+      className="block text-sm font-medium text-slate-700 mb-1"
+    >
       {question.label}
-      {question.is_required && (
-        <span className="text-red-500 ml-1">*</span>
-      )}
+      {question.is_required && <span className="text-red-500 ml-1">*</span>}
       {question.is_personal_data && (
         <span className="text-slate-400 font-normal ml-1">(Personal data)</span>
       )}
@@ -214,6 +212,7 @@ function QuestionField({
       case "textarea":
         return (
           <textarea
+            id={fieldId}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             rows={4}
@@ -224,6 +223,7 @@ function QuestionField({
       case "select":
         return (
           <select
+            id={fieldId}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className={baseInputClass}
@@ -239,12 +239,12 @@ function QuestionField({
         );
       case "radio":
         return (
-          <div className="space-y-2">
+          <div className="space-y-2" role="group" aria-labelledby={`${fieldId}-label`}>
+            <span id={`${fieldId}-label`} className="sr-only">
+              {question.label}
+            </span>
             {(question.options ?? []).map((opt) => (
-              <label
-                key={opt}
-                className="flex items-center gap-2 cursor-pointer"
-              >
+              <label key={opt} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name={`q-${question.id}`}
@@ -260,6 +260,7 @@ function QuestionField({
       default:
         return (
           <input
+            id={fieldId}
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}

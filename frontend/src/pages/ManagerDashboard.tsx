@@ -40,7 +40,10 @@ function ManagerUpvotes({ surveyId, opinionId }: { surveyId: string; opinionId: 
     enabled: !!surveyId && !!opinionId,
   });
   const withComment = upvotes.filter(
-    (u: UpvoteItem) => u.published_comment != null && u.published_comment.trim() !== ""
+    (u: UpvoteItem) =>
+      u.status === "published" &&
+      u.published_comment != null &&
+      u.published_comment.trim() !== ""
   );
   if (withComment.length === 0) return null;
   return (
@@ -50,11 +53,16 @@ function ManagerUpvotes({ surveyId, opinionId }: { surveyId: string; opinionId: 
         {withComment.map((u: UpvoteItem) => (
           <li key={u.id} className="rounded border border-slate-200 bg-slate-50/50 p-2 text-sm">
             <p className="text-slate-700">{u.published_comment}</p>
-            {u.is_disclosure_agreed && u.disclosed_pii && Object.keys(u.disclosed_pii).length > 0 && (
-              <p className="text-xs text-slate-600 mt-1">
-                PII (disclosed): {Object.entries(u.disclosed_pii).map(([k, v]) => `${k}=${v}`).join(", ")}
-              </p>
-            )}
+            {u.is_disclosure_agreed &&
+              u.disclosed_pii &&
+              Object.keys(u.disclosed_pii).length > 0 && (
+                <p className="text-xs text-slate-600 mt-1">
+                  PII (disclosed):{" "}
+                  {Object.entries(u.disclosed_pii)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")}
+                </p>
+              )}
           </li>
         ))}
       </ul>
@@ -67,7 +75,7 @@ export function ManagerDashboard() {
   const queryClient = useQueryClient();
   const [accessCode, setAccessCode] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
-  const [logoutTrigger, setLogoutTrigger] = useState(0);
+  const [_logoutTrigger, setLogoutTrigger] = useState(0);
 
   const token = surveyId ? getManagerToken(surveyId) : null;
   const isLoggedIn = !!token;
@@ -161,9 +169,7 @@ export function ManagerDashboard() {
               autoComplete="current-password"
             />
           </div>
-          {authError && (
-            <p className="text-sm text-red-600">{authError}</p>
-          )}
+          {authError && <p className="text-sm text-red-600">{authError}</p>}
           <button
             type="submit"
             disabled={authMutation.isPending}
@@ -181,9 +187,7 @@ export function ManagerDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-semibold text-slate-800">Manager dashboard</h1>
-          {survey?.name && (
-            <p className="text-sm text-slate-500 mt-0.5">Survey: {survey.name}</p>
-          )}
+          {survey?.name && <p className="text-sm text-slate-500 mt-0.5">Survey: {survey.name}</p>}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -236,13 +240,18 @@ export function ManagerDashboard() {
               <p className="text-sm text-slate-600 mt-0.5 whitespace-pre-wrap">{o.content}</p>
               {o.admin_notes && o.admin_notes.trim() && (
                 <div className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs font-medium text-slate-500 mb-1">Administrator Comments & Notes</p>
+                  <p className="text-xs font-medium text-slate-500 mb-1">
+                    Administrator Comments & Notes
+                  </p>
                   <p className="text-sm text-slate-700 whitespace-pre-wrap">{o.admin_notes}</p>
                 </div>
               )}
               {o.disclosed_pii && Object.keys(o.disclosed_pii).length > 0 && (
                 <p className="text-xs text-emerald-700 mt-2 font-medium">
-                  PII (disclosed): {Object.entries(o.disclosed_pii).map(([k, v]) => `${k}=${v}`).join(", ")}
+                  PII (disclosed):{" "}
+                  {Object.entries(o.disclosed_pii)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")}
                 </p>
               )}
               <div className="flex flex-wrap items-center justify-end gap-3 mt-2 text-xs text-slate-500">
@@ -251,7 +260,7 @@ export function ManagerDashboard() {
                 <span>Impact: {SCORE_LABELS[o.expected_impact ?? 0] ?? "—"}</span>
                 <span>Supporters: {SCORE_LABELS[o.supporter_points ?? 0] ?? "—"}</span>
                 <span className="text-slate-400">
-                  ({(o.supporters ?? 0)} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""})
+                  ({o.supporters ?? 0} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""})
                 </span>
                 <StarRating score={o.priority_score} />
               </div>

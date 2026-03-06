@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { verifyAdminPassword, setAdminKeyForSession, clearAdminKeySession, hasAdminKey } from "@/lib/api";
+import {
+  verifyAdminPassword,
+  setAdminKeyForSession,
+  clearAdminKeySession,
+  hasAdminKey,
+} from "@/lib/api";
 
 const ADMIN_AUTH_KEY = "admin_authenticated";
 
@@ -26,7 +31,9 @@ function setAdminAuthenticated(value: boolean): void {
 }
 
 export function AdminGuard() {
-  const [authenticated, setAuthenticated] = useState(() => getAdminAuthenticated() && hasAdminKey());
+  const [authenticated, setAuthenticated] = useState(
+    () => getAdminAuthenticated() && hasAdminKey()
+  );
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -53,13 +60,17 @@ export function AdminGuard() {
         setAuthenticated(true);
       } else {
         if (result.status === 404) {
-          setError("Admin access is not configured on the server. Set ADMIN_API_KEY on the backend (e.g. in Docker).");
+          setError(
+            "Admin access is not configured on the server. Set ADMIN_API_KEY on the backend (e.g. in Docker)."
+          );
         } else {
           setError("Incorrect password.");
         }
       }
     } catch {
-      setError("Could not reach the server. Check that the backend is running and VITE_API_URL is correct.");
+      setError(
+        "Could not reach the server. Check that the backend is running and VITE_API_URL is correct."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +86,9 @@ export function AdminGuard() {
       <p className="text-sm text-slate-500 mb-4">
         Enter the administrator password to access the admin area.
       </p>
-      <p className="text-xs text-slate-400 mb-2">Use the same value as ADMIN_API_KEY (project root .env).</p>
+      <p className="text-xs text-slate-400 mb-2">
+        Use the same value as ADMIN_API_KEY (project root .env).
+      </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>

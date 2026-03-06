@@ -1,4 +1,5 @@
 """Survey provisioning: create tenant schema and tables, register in public.surveys."""
+
 import re
 import secrets
 import string
@@ -133,9 +134,7 @@ async def create_survey(
 async def delete_survey(db: AsyncSession, survey_id: UUID) -> None:
     """Drop tenant schema and delete survey from public.surveys."""
     await db.execute(text("SET search_path TO public"))
-    result = await db.execute(
-        select(Survey).where(Survey.id == survey_id)
-    )
+    result = await db.execute(select(Survey).where(Survey.id == survey_id))
     survey = result.scalar_one_or_none()
     if not survey:
         raise ValueError("Survey not found")
