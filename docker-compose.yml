@@ -30,7 +30,7 @@ services:
       # Use db host inside Docker; root .env DATABASE_URL is for local runs only.
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/strategic_survey
       ADMIN_API_KEY: ${ADMIN_API_KEY:-}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production-min-32-bytes-required}
     ports:
       - "8000:8000"
     depends_on:

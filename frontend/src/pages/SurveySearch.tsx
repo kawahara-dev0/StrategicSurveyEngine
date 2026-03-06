@@ -17,7 +17,11 @@ export function SurveySearch() {
   const [upvoteEmail, setUpvoteEmail] = useState("");
   const [disclosureAgreed, setDisclosureAgreed] = useState(false);
 
-  const { data: surveyData, isLoading: loadingSurvey, error: surveyError } = useQuery({
+  const {
+    data: surveyData,
+    isLoading: loadingSurvey,
+    error: surveyError,
+  } = useQuery({
     queryKey: ["survey-questions", surveyId],
     queryFn: () => getSurveyQuestions(surveyId!),
     enabled: !!surveyId,
@@ -97,21 +101,15 @@ export function SurveySearch() {
   if (surveyError || !surveyData) {
     return (
       <div className="max-w-2xl mx-auto p-6">
-        <p className="text-red-600">
-          Survey not found. Check the URL.
-        </p>
+        <p className="text-red-600">Survey not found. Check the URL.</p>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-xl font-semibold text-slate-800 mb-1">
-        {surveyData.survey_name}
-      </h1>
-      <p className="text-sm text-slate-500 mb-6">
-        Search published opinions or post your own.
-      </p>
+      <h1 className="text-xl font-semibold text-slate-800 mb-1">{surveyData.survey_name}</h1>
+      <p className="text-sm text-slate-500 mb-6">Search published opinions or post your own.</p>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-6">
         <input
@@ -137,21 +135,14 @@ export function SurveySearch() {
         </div>
       ) : opinions.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
-          <p className="text-slate-600">
-            No matching opinions.
-          </p>
+          <p className="text-slate-600">No matching opinions.</p>
         </div>
       ) : (
         <ul className="space-y-4">
           {opinions.map((o: PublicOpinionItem) => (
-            <li
-              key={o.id}
-              className="rounded-lg border border-slate-200 bg-white p-4"
-            >
+            <li key={o.id} className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-medium text-slate-900 mb-2">{o.title}</h2>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap mb-3">
-                {o.content}
-              </p>
+              <p className="text-sm text-slate-600 whitespace-pre-wrap mb-3">{o.content}</p>
               {o.additional_comments.length > 0 && (
                 <div className="space-y-1 mb-3 pl-3 border-l-2 border-slate-200">
                   {o.additional_comments.map((comment, i) => (
@@ -162,10 +153,10 @@ export function SurveySearch() {
                   ))}
                 </div>
               )}
-              <div className="flex items-center gap-3 text-sm text-slate-500">
+              <div className="flex items-center justify-end gap-3 text-sm text-slate-500">
                 <span className="flex items-center gap-1">
                   <ThumbsUp className="w-3.5 h-3.5" />
-                  {(o.supporters ?? 0)} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""}
+                  {o.supporters ?? 0} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""}
                 </span>
                 {o.current_user_has_supported ? (
                   <span className="text-slate-600 font-medium">Already supported</span>
@@ -179,15 +170,10 @@ export function SurveySearch() {
                       className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
                     />
                     <div className="space-y-2 border-t border-slate-200 pt-2 mt-1">
-                      <p className="text-xs font-medium text-slate-600">Optional: Share with manager</p>
+                      <p className="text-xs font-medium text-slate-600">
+                        Optional: Share with manager
+                      </p>
                       <div className="grid gap-2">
-                        <input
-                          type="text"
-                          value={upvoteDept}
-                          onChange={(e) => setUpvoteDept(e.target.value)}
-                          placeholder="Dept."
-                          className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                        />
                         <input
                           type="text"
                           value={upvoteName}
@@ -202,6 +188,13 @@ export function SurveySearch() {
                           placeholder="Email"
                           className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
                         />
+                        <input
+                          type="text"
+                          value={upvoteDept}
+                          onChange={(e) => setUpvoteDept(e.target.value)}
+                          placeholder="Department"
+                          className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
+                        />
                         <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
                           <input
                             type="checkbox"
@@ -210,7 +203,8 @@ export function SurveySearch() {
                             className="mt-0.5"
                           />
                           <span>
-                            I agree to disclose my personal information (above) to managers for evaluation or hearings.
+                            I agree to disclose my personal information (above) to managers for
+                            evaluation or hearings.
                           </span>
                         </label>
                       </div>

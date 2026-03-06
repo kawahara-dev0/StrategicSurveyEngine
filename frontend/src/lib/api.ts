@@ -6,7 +6,8 @@ let adminKeyMemory: string | null = null;
 
 function getEffectiveAdminKey(): string {
   try {
-    const session = typeof sessionStorage !== "undefined" ? sessionStorage.getItem(ADMIN_KEY_SESSION_KEY) : null;
+    const session =
+      typeof sessionStorage !== "undefined" ? sessionStorage.getItem(ADMIN_KEY_SESSION_KEY) : null;
     if (session) return session;
   } catch {
     // ignore
@@ -37,7 +38,9 @@ export function hasAdminKey(): boolean {
   return getEffectiveAdminKey().length > 0;
 }
 
-export async function verifyAdminPassword(password: string): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
+export async function verifyAdminPassword(
+  password: string
+): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
   const r = await fetch(`${baseUrl}/admin/verify-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -82,9 +85,7 @@ export async function createSurvey(
   return r.json();
 }
 
-export async function getSurvey(
-  surveyId: string
-): Promise<import("@/types/api").Survey> {
+export async function getSurvey(surveyId: string): Promise<import("@/types/api").Survey> {
   const r = await fetch(`${baseUrl}/admin/surveys/${surveyId}`, {
     headers: headers(),
   });
@@ -100,9 +101,7 @@ export async function deleteSurvey(surveyId: string): Promise<void> {
   if (!r.ok) throw new Error(await r.text());
 }
 
-export async function resetSurveyAccessCode(
-  surveyId: string
-): Promise<{ access_code: string }> {
+export async function resetSurveyAccessCode(surveyId: string): Promise<{ access_code: string }> {
   const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
   const r = await fetch(`${baseUrl}/admin/surveys/${id}/reset-access-code`, {
     method: "POST",
@@ -112,20 +111,15 @@ export async function resetSurveyAccessCode(
   return r.json();
 }
 
-export async function deleteQuestion(
-  surveyId: string,
-  questionId: number
-): Promise<void> {
-  const r = await fetch(
-    `${baseUrl}/admin/surveys/${surveyId}/questions/${questionId}`,
-    { method: "DELETE", headers: headers() }
-  );
+export async function deleteQuestion(surveyId: string, questionId: number): Promise<void> {
+  const r = await fetch(`${baseUrl}/admin/surveys/${surveyId}/questions/${questionId}`, {
+    method: "DELETE",
+    headers: headers(),
+  });
   if (!r.ok) throw new Error(await r.text());
 }
 
-export async function listQuestions(
-  surveyId: string
-): Promise<import("@/types/api").Question[]> {
+export async function listQuestions(surveyId: string): Promise<import("@/types/api").Question[]> {
   const r = await fetch(`${baseUrl}/admin/surveys/${surveyId}/questions`, {
     headers: headers(),
   });
@@ -151,7 +145,7 @@ function normalizeSurveyId(surveyId: string): string {
   return surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
 }
 
-/** Public API: no admin key needed (Phase 3) */
+/** Public API: no admin key needed */
 export async function getSurveyQuestions(
   surveyId: string
 ): Promise<import("@/types/api").SurveyQuestionsResponse> {
@@ -175,7 +169,7 @@ export async function submitSurveyResponse(
   return r.json();
 }
 
-/** Public API: opinions list and search (Phase 5) – no admin key */
+/** Public API: opinions list and search – no admin key */
 export async function getPublicOpinions(
   surveyId: string
 ): Promise<import("@/types/api").PublicOpinionItem[]> {
@@ -219,7 +213,7 @@ export async function postUpvote(
   return r.json();
 }
 
-/** Moderation (Phase 4) - uses same surveyId normalization as public API */
+/** Moderation - uses same surveyId normalization as public API */
 export async function listResponses(
   surveyId: string
 ): Promise<import("@/types/api").RawResponseListItem[]> {
@@ -236,10 +230,9 @@ export async function getResponse(
   responseId: string
 ): Promise<import("@/types/api").RawResponseDetail> {
   const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
-  const r = await fetch(
-    `${baseUrl}/admin/surveys/${id}/responses/${responseId}`,
-    { headers: headers() }
-  );
+  const r = await fetch(`${baseUrl}/admin/surveys/${id}/responses/${responseId}`, {
+    headers: headers(),
+  });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }
@@ -292,7 +285,7 @@ export async function updateOpinion(
   return r.json();
 }
 
-/** Phase 5: list upvotes for an opinion (moderation) */
+/** List upvotes for an opinion (moderation) */
 export async function listUpvotesForOpinion(
   surveyId: string,
   opinionId: number
@@ -305,7 +298,7 @@ export async function listUpvotesForOpinion(
   return r.json();
 }
 
-/** Phase 5: update upvote (published_comment, status) */
+/** Update upvote (published_comment, status) */
 export async function updateUpvote(
   surveyId: string,
   upvoteId: number,
@@ -321,7 +314,7 @@ export async function updateUpvote(
   return r.json();
 }
 
-/** Manager API (Phase 6): Access Code auth, dashboard, export */
+/** Manager API: Access Code auth, dashboard, export */
 const MANAGER_TOKEN_KEY = "manager_token";
 
 export function getManagerToken(surveyId: string): string | null {
@@ -362,9 +355,7 @@ function managerHeaders(surveyId: string): HeadersInit {
   };
 }
 
-export async function getManagerSurvey(
-  surveyId: string
-): Promise<{ id: string; name: string }> {
+export async function getManagerSurvey(surveyId: string): Promise<{ id: string; name: string }> {
   const id = normalizeSurveyId(surveyId);
   const r = await fetch(`${baseUrl}/manager/${id}/survey`, {
     headers: managerHeaders(surveyId),

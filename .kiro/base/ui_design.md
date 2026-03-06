@@ -9,7 +9,7 @@ To improve data quality and prevent duplicate submissions, users are guided thro
 
 ## 2. Screen Definitions
 
-### 2.1 Public: List & Search View (`/survey/[uuid]/results`)
+### 2.1 Public: List & Search View (`/survey/[uuid]`)
 * **Purpose**: Encourage users to read existing opinions before posting and reduce duplicate submissions.
 * **Key Features**:
     - **Keyword Search Bar**: Real-time filtering of `published_opinions`.
@@ -42,7 +42,7 @@ To improve data quality and prevent duplicate submissions, users are guided thro
 
 ### 2.5 Super Admin Dashboard (`/admin`)
 * **Purpose**: Global system management and moderation.
-* **Access**: Restricted by Master Admin Password.
+* **Access**: Restricted by Admin API Key (X-Admin-API-Key header or password verification).
 * **Key Features**:
     - **Moderation Workspace**: Review `raw_answers`, calculate `priority_score`, rewrite for anonymity, and publish.
     - **Survey Provisioning**: UI to input client name and auto-generate Schema, UUID, and Access Code.
@@ -62,7 +62,7 @@ Each opinion is evaluated by the Admin on 4 criteria:
 2. **Urgency** (0-2 pts) x2 weight
 3. **Expected Impact** (0-2 pts) x2 weight
 4. **Number of Supporters** (0-2 pts) x1 weight
-   - *Total Score Calculation: (Imp+Urg+Exp)*2 + (Supporters)*
+   - *Total Score Calculation: (Imp+Urg+Exp)*2 + (Supporters)*1 (max 14 pts)*
 
 ### Score Visualization:
 - **12-14**: ★★★★★ (Immediate action recommended)

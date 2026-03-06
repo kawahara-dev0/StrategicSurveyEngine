@@ -1,11 +1,11 @@
 """Dynamic schema-switching: resolve survey UUID to schema_name and store for request-scoped DB sessions."""
+
 import re
 from uuid import UUID
 
+from sqlalchemy import select, text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import AsyncSessionLocal
 from app.models.public import Survey
@@ -39,9 +39,7 @@ async def _resolve_schema_name(survey_id: UUID) -> str | None:
     """Look up schema_name from public.surveys by survey id. Uses default search_path (public)."""
     async with AsyncSessionLocal() as session:
         await session.execute(text("SET search_path TO public"))
-        result = await session.execute(
-            select(Survey.schema_name).where(Survey.id == survey_id)
-        )
+        result = await session.execute(select(Survey.schema_name).where(Survey.id == survey_id))
         row = result.scalar_one_or_none()
         return row
 

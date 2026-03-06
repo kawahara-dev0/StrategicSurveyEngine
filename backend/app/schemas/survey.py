@@ -1,8 +1,9 @@
 """Survey API schemas."""
+
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class SurveyCreate(BaseModel):
@@ -18,12 +19,14 @@ class SurveyResponse(BaseModel):
     contract_end_date: date | None
     deletion_due_date: date | None
     notes: str | None = None
-    access_code: str | None = None  # Manager access code (admin only; null if not stored or after reset not yet done)
+    access_code: str | None = (
+        None  # Manager access code (admin only; null if not stored or after reset not yet done)
+    )
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SurveyCreateResponse(SurveyResponse):
     """Response when creating a survey - includes access_code (plain, show once)."""
+
     access_code: str

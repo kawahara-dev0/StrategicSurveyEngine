@@ -1,9 +1,10 @@
 """SQLAlchemy models: public schema (surveys) and tenant schema (questions, raw_*, published_opinions, upvotes)."""
+
 from app.models.public import Survey, SurveyStatus
 from app.models.tenant import (
+    PublishedOpinion,
     Question,
     QuestionType,
-    PublishedOpinion,
     RawAnswer,
     RawResponse,
     Upvote,

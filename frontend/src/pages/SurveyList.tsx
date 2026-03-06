@@ -7,7 +7,11 @@ import { Calendar, FolderOpen, Trash2, Copy, Check } from "lucide-react";
 export function SurveyList() {
   const queryClient = useQueryClient();
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const copyAccessCode = (e: React.MouseEvent, surveyId: string, code: string | null | undefined) => {
+  const copyAccessCode = (
+    e: React.MouseEvent,
+    surveyId: string,
+    code: string | null | undefined
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     if (!code) return;
@@ -15,7 +19,11 @@ export function SurveyList() {
     setCopiedId(surveyId);
     setTimeout(() => setCopiedId(null), 2000);
   };
-  const { data: surveys, isLoading, error } = useQuery({
+  const {
+    data: surveys,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["surveys"],
     queryFn: listSurveys,
   });
@@ -30,7 +38,9 @@ export function SurveyList() {
   const handleDeleteSurvey = (e: React.MouseEvent, surveyId: string, surveyName: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (window.confirm(`Delete survey "${surveyName}"? This will remove all questions and responses.`)) {
+    if (
+      window.confirm(`Delete survey "${surveyName}"? This will remove all questions and responses.`)
+    ) {
       deleteMutation.mutate(surveyId);
     }
   };
@@ -74,10 +84,7 @@ export function SurveyList() {
         {surveys.map((s) => (
           <li key={s.id}>
             <div className="flex items-stretch rounded-lg border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition group">
-              <Link
-                to={`/admin/surveys/${s.id}`}
-                className="flex-1 p-4 min-w-0"
-              >
+              <Link to={`/admin/surveys/${s.id}`} className="flex-1 p-4 min-w-0">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-medium text-slate-900">{s.name}</p>
@@ -104,10 +111,18 @@ export function SurveyList() {
                 type="button"
                 onClick={(e) => copyAccessCode(e, s.id, s.access_code)}
                 className="px-3 py-4 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition disabled:opacity-40"
-                title={s.access_code ? "Copy Manager access code" : "No access code stored (reset in survey detail)"}
+                title={
+                  s.access_code
+                    ? "Copy Manager access code"
+                    : "No access code stored (reset in survey detail)"
+                }
                 disabled={!s.access_code}
               >
-                {copiedId === s.id ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                {copiedId === s.id ? (
+                  <Check className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
               </button>
               <button
                 type="button"

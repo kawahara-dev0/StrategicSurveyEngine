@@ -1,5 +1,6 @@
-"""Moderation & published opinions API schemas (Phase 4)."""
-from pydantic import BaseModel, field_validator
+"""Moderation & published opinions API schemas."""
+
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class RawAnswerWithLabel(BaseModel):
@@ -59,14 +60,17 @@ class PublishedOpinionResponse(BaseModel):
     expected_impact: int = 0
     supporter_points: int = 0
     supporters: int = 0  # Number of upvotes (supporters count)
-    pending_upvotes_count: int = 0  # Upvotes not yet published/rejected (show "View / moderate" when > 0)
+    pending_upvotes_count: int = (
+        0  # Upvotes not yet published/rejected (show "View / moderate" when > 0)
+    )
     disclosed_pii: dict | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
-def _score_from_components(importance: int, urgency: int, expected_impact: int, supporter_points: int) -> int:
+def _score_from_components(
+    importance: int, urgency: int, expected_impact: int, supporter_points: int
+) -> int:
     """(Imp+Urg+Impact)*2 + supporters → max 14."""
     return (importance + urgency + expected_impact) * 2 + supporter_points
 
@@ -103,10 +107,9 @@ class UpvoteResponse(BaseModel):
     status: str
     created_at: str
     is_disclosure_agreed: bool = False
-    disclosed_pii: dict | None = None  # Dept, Name, Email when is_disclosure_agreed
+    disclosed_pii: dict | None = None  # Name, Email, Department when is_disclosure_agreed
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UpvoteUpdate(BaseModel):

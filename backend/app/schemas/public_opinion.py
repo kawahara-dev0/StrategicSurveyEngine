@@ -1,4 +1,4 @@
-"""Public API: published opinions (no PII). Phase 5."""
+"""Public API: published opinions (no PII)."""
 
 from pydantic import BaseModel
 
@@ -16,10 +16,10 @@ class PublicOpinionItem(BaseModel):
 
 
 class UpvoteCreate(BaseModel):
-    """Optional comment and PII (dept, name, email) with single is_disclosure_agreed."""
+    """Optional comment and PII (name, email, department) with single is_disclosure_agreed."""
 
     comment: str | None = None
-    dept: str | None = None
+    dept: str | None = None  # Maps to Department in disclosed_pii
     name: str | None = None
     email: str | None = None
     is_disclosure_agreed: bool = False

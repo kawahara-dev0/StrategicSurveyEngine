@@ -1,11 +1,11 @@
-"""Manager API (Phase 6): Client HR dashboard with Access Code auth and export."""
-from datetime import datetime, timezone, timedelta
-from io import BytesIO
+"""Manager API: client HR dashboard with Access Code auth and export."""
+
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy import func, select, text
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -27,7 +27,7 @@ async def _get_tenant_schema(db: AsyncSession, survey_id: UUID) -> str:
     row = r.mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Survey not found")
-    return row["schema_name"]
+    return str(row["schema_name"])
 
 
 def _verify_access_code(plain: str, stored: str | None) -> bool:
@@ -37,12 +37,14 @@ def _verify_access_code(plain: str, stored: str | None) -> bool:
 
 
 def _create_manager_token(survey_id: UUID) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+    exp = datetime.now(UTC) + timedelta(minutes=settings.jwt_expire_minutes)
     payload = {"sub": str(survey_id), "exp": exp}
-    return jwt.encode(
-        payload,
-        settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
+    return str(
+        jwt.encode(
+            payload,
+            settings.jwt_secret_key,
+            algorithm=settings.jwt_algorithm,
+        )
     )
 
 
@@ -145,8 +147,7 @@ async def list_manager_opinions(
             .group_by(Upvote.opinion_id)
         )
         supporters_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in supporters_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in supporters_result.all()
         }
         pending_result = await db.execute(
             select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
@@ -157,8 +158,7 @@ async def list_manager_opinions(
             .group_by(Upvote.opinion_id)
         )
         pending_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in pending_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in pending_result.all()
         }
     return [
         PublishedOpinionResponse(
@@ -227,7 +227,10 @@ async def export_survey(
         raise HTTPException(status_code=404, detail="Survey not found")
     survey_name = survey.name
     schema_name = survey.schema_name
-    safe_name = "".join(c if c not in '\\/:*?"<>|' else "_" for c in (survey_name or "Survey")[:80]).strip() or "Survey"
+    safe_name = (
+        "".join(c if c not in '\\/:*?"<>|' else "_" for c in (survey_name or "Survey")[:80]).strip()
+        or "Survey"
+    )
     base_filename = f"Survey Opinions Report - {safe_name}"
     await db.execute(text(f"SET search_path TO {schema_name}"))
     result = await db.execute(
@@ -236,6 +239,7 @@ async def export_survey(
     opinions = result.scalars().all()
     opinion_ids = [o.id for o in opinions]
     supporters_by_opinion: dict[int, int] = {}
+    upvotes_by_opinion: dict[int, list[Upvote]] = {oid: [] for oid in opinion_ids}
     if opinion_ids:
         supporters_result = await db.execute(
             select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
@@ -243,16 +247,35 @@ async def export_survey(
             .group_by(Upvote.opinion_id)
         )
         supporters_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in supporters_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in supporters_result.all()
         }
+        upvotes_result = await db.execute(
+            select(Upvote)
+            .where(
+                Upvote.opinion_id.in_(opinion_ids),
+                Upvote.status == UpvoteStatus.published,
+                and_(
+                    Upvote.published_comment.isnot(None),
+                    func.trim(Upvote.published_comment) != "",
+                ),
+            )
+            .order_by(Upvote.opinion_id, Upvote.created_at)
+        )
+        for u in upvotes_result.scalars().all():
+            upvotes_by_opinion.setdefault(u.opinion_id, []).append(u)
 
     if format == "xlsx":
         from fastapi.responses import Response
 
         from app.routers.manager_export import build_xlsx
 
-        buf = build_xlsx(opinions, supporters_by_opinion, survey_name=survey_name)
+        buf = build_xlsx(
+            opinions,
+            supporters_by_opinion,
+            upvotes_by_opinion,
+            survey_name=survey_name,
+            document_title=base_filename,
+        )
         return Response(
             content=buf.getvalue(),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -263,7 +286,13 @@ async def export_survey(
 
         from app.routers.manager_export import build_pdf
 
-        buf = build_pdf(opinions, supporters_by_opinion, survey_name=survey_name)
+        buf = build_pdf(
+            opinions,
+            supporters_by_opinion,
+            upvotes_by_opinion,
+            survey_name=survey_name,
+            document_title=base_filename,
+        )
         return Response(
             content=buf.getvalue(),
             media_type="application/pdf",

@@ -57,14 +57,21 @@ function UpvotesSection({
     enabled: !!surveyId && !!opinionId,
   });
   const updateMutation = useMutation({
-    mutationFn: ({ upvoteId, payload }: { upvoteId: number; payload: { published_comment?: string | null; status?: string } }) =>
-      updateUpvote(surveyId, upvoteId, payload),
+    mutationFn: ({
+      upvoteId,
+      payload,
+    }: {
+      upvoteId: number;
+      payload: { published_comment?: string | null; status?: string };
+    }) => updateUpvote(surveyId, upvoteId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["upvotes", surveyId, opinionId] });
       queryClient.invalidateQueries({ queryKey: ["opinions", surveyId] });
     },
   });
-  const [edits, setEdits] = useState<Record<number, { published_comment: string; status: string }>>({});
+  const [edits, setEdits] = useState<Record<number, { published_comment: string; status: string }>>(
+    {}
+  );
   const getEdit = (u: UpvoteItem) =>
     edits[u.id] ?? { published_comment: u.published_comment ?? "", status: u.status };
 
@@ -73,12 +80,18 @@ function UpvotesSection({
     <div className="mt-3 pt-3 border-t border-slate-200">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-slate-500">Upvotes / Additional comments</span>
-        <button type="button" onClick={onClose} className="text-xs text-slate-400 hover:text-slate-600">
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-xs text-slate-400 hover:text-slate-600"
+        >
           Close
         </button>
       </div>
       {(() => {
-        const withComment = upvotes.filter((u) => u.raw_comment != null && u.raw_comment.trim() !== "");
+        const withComment = upvotes.filter(
+          (u) => u.raw_comment != null && u.raw_comment.trim() !== ""
+        );
         if (withComment.length === 0) {
           return <p className="text-sm text-slate-500">No additional comments to moderate.</p>;
         }
@@ -86,11 +99,15 @@ function UpvotesSection({
           <ul className="space-y-3">
             {withComment.map((u) => (
               <li key={u.id} className="rounded border border-slate-200 bg-slate-50/50 p-2 text-sm">
-                {u.is_disclosure_agreed && u.disclosed_pii && Object.keys(u.disclosed_pii).length > 0 && (
-                  <p className="text-slate-600 mb-1 text-xs">
-                    Dept: {u.disclosed_pii["Dept"] ?? "—"}, Name: {u.disclosed_pii["Name"] ?? "—"}, Email: {u.disclosed_pii["Email"] ?? "—"}
-                  </p>
-                )}
+                {u.is_disclosure_agreed &&
+                  u.disclosed_pii &&
+                  Object.keys(u.disclosed_pii).length > 0 && (
+                    <p className="text-slate-600 mb-1 text-xs">
+                      Name: {u.disclosed_pii["Name"] ?? "—"}, Email:{" "}
+                      {u.disclosed_pii["Email"] ?? "—"}, Department:{" "}
+                      {u.disclosed_pii["Department"] ?? "—"}
+                    </p>
+                  )}
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span
                     className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
@@ -104,9 +121,7 @@ function UpvotesSection({
                     {u.status}
                   </span>
                 </div>
-                <p className="text-slate-600 mb-1">
-                  Raw: {u.raw_comment}
-                </p>
+                <p className="text-slate-600 mb-1">Raw: {u.raw_comment}</p>
                 <div className="flex flex-wrap gap-2 items-start">
                   <div className="min-w-[200px]">
                     <label className="block text-xs text-slate-500">Published comment</label>
@@ -220,8 +235,7 @@ export function SurveyModeration() {
   }, [responses, publishedResponseIds]);
 
   const publishMutation = useMutation({
-    mutationFn: (payload: PublishOpinionPayload) =>
-      createOpinion(surveyId!, payload),
+    mutationFn: (payload: PublishOpinionPayload) => createOpinion(surveyId!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["opinions", surveyId] });
       queryClient.invalidateQueries({ queryKey: ["responses", surveyId] });
@@ -242,7 +256,15 @@ export function SurveyModeration() {
     urgency: number;
     expected_impact: number;
     supporter_points: number;
-  }>({ title: "", content: "", admin_notes: "", importance: 0, urgency: 0, expected_impact: 0, supporter_points: 0 });
+  }>({
+    title: "",
+    content: "",
+    admin_notes: "",
+    importance: 0,
+    urgency: 0,
+    expected_impact: 0,
+    supporter_points: 0,
+  });
   const updateOpinionMutation = useMutation({
     mutationFn: ({
       opinionId,
@@ -350,7 +372,10 @@ export function SurveyModeration() {
                 const isPublished = publishedResponseIds.has(r.id);
                 const isSelected = selectedResponseId === r.id;
                 return (
-                  <li key={r.id} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                  <li
+                    key={r.id}
+                    className="rounded-lg border border-slate-200 bg-white overflow-hidden"
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -383,10 +408,13 @@ export function SurveyModeration() {
                           <div className="animate-pulse h-20 bg-slate-100 rounded" />
                         ) : responseDetail ? (
                           <>
-                            <h3 className="font-medium text-slate-800 mb-2 text-sm">Response content</h3>
+                            <h3 className="font-medium text-slate-800 mb-2 text-sm">
+                              Response content
+                            </h3>
                             {publishedResponseIds.has(r.id) ? (
                               <p className="text-sm text-slate-600 mb-4 rounded bg-slate-100 px-3 py-2">
-                                This response is already published as an opinion. It cannot be published again.
+                                This response is already published as an opinion. It cannot be
+                                published again.
                               </p>
                             ) : null}
                             <ul className="space-y-2 mb-4 text-sm">
@@ -395,7 +423,9 @@ export function SurveyModeration() {
                                   <span className="text-slate-500">{a.label}:</span>{" "}
                                   <span className="text-slate-800">{a.answer_text}</span>
                                   {a.is_disclosure_agreed && (
-                                    <span className="ml-2 text-xs text-emerald-600">(Disclosure agreed)</span>
+                                    <span className="ml-2 text-xs text-emerald-600">
+                                      (Disclosure agreed)
+                                    </span>
                                   )}
                                 </li>
                               ))}
@@ -403,7 +433,9 @@ export function SurveyModeration() {
                             {!publishedResponseIds.has(r.id) && (
                               <form onSubmit={handlePublish} className="space-y-3">
                                 <div>
-                                  <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Title
+                                  </label>
                                   <input
                                     type="text"
                                     value={title}
@@ -414,7 +446,9 @@ export function SurveyModeration() {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-slate-600 mb-1">Content</label>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Content
+                                  </label>
                                   <textarea
                                     value={content}
                                     onChange={(e) => setContent(e.target.value)}
@@ -425,7 +459,9 @@ export function SurveyModeration() {
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs font-medium text-slate-600 mb-1">Administrator Comments & Notes</label>
+                                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                                    Administrator Comments & Notes
+                                  </label>
                                   <textarea
                                     value={adminNotes}
                                     onChange={(e) => setAdminNotes(e.target.value)}
@@ -438,7 +474,11 @@ export function SurveyModeration() {
                                   {[
                                     { label: "Importance", value: importance, set: setImportance },
                                     { label: "Urgency", value: urgency, set: setUrgency },
-                                    { label: "Expected impact", value: expectedImpact, set: setExpectedImpact },
+                                    {
+                                      label: "Expected impact",
+                                      value: expectedImpact,
+                                      set: setExpectedImpact,
+                                    },
                                   ].map(({ label, value, set }) => (
                                     <div key={label}>
                                       <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -451,7 +491,7 @@ export function SurveyModeration() {
                                       >
                                         {[0, 1, 2].map((n) => (
                                           <option key={n} value={n}>
-                                            {n}
+                                            {SCORE_LABELS[n]}
                                           </option>
                                         ))}
                                       </select>
@@ -502,17 +542,16 @@ export function SurveyModeration() {
           ) : (
             <ul className="space-y-3">
               {opinions.map((o) => (
-                <li
-                  key={o.id}
-                  className="rounded-lg border border-slate-200 bg-white p-4"
-                >
+                <li key={o.id} className="rounded-lg border border-slate-200 bg-white p-4">
                   {editingOpinionId === o.id ? (
                     <div className="space-y-3">
                       <p className="text-xs font-mono text-slate-500">
                         Response ID: {o.raw_response_id}
                       </p>
                       <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-0.5">Title</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-0.5">
+                          Title
+                        </label>
                         <input
                           value={editForm.title}
                           onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))}
@@ -520,7 +559,9 @@ export function SurveyModeration() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-0.5">Content</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-0.5">
+                          Content
+                        </label>
                         <textarea
                           value={editForm.content}
                           onChange={(e) => setEditForm((f) => ({ ...f, content: e.target.value }))}
@@ -529,10 +570,14 @@ export function SurveyModeration() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-500 mb-0.5">Administrator Comments & Notes</label>
+                        <label className="block text-xs font-medium text-slate-500 mb-0.5">
+                          Administrator Comments & Notes
+                        </label>
                         <textarea
                           value={editForm.admin_notes}
-                          onChange={(e) => setEditForm((f) => ({ ...f, admin_notes: e.target.value }))}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, admin_notes: e.target.value }))
+                          }
                           rows={2}
                           className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
                           placeholder="Visible only on Manager dashboard and exports"
@@ -542,45 +587,64 @@ export function SurveyModeration() {
                         <label className="text-xs font-medium text-slate-500">Imp</label>
                         <select
                           value={editForm.importance}
-                          onChange={(e) => setEditForm((f) => ({ ...f, importance: Number(e.target.value) }))}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, importance: Number(e.target.value) }))
+                          }
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
                           {([0, 1, 2] as const).map((i) => (
-                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
+                            <option key={i} value={i}>
+                              {SCORE_LABELS[i]}
+                            </option>
                           ))}
                         </select>
                         <label className="text-xs font-medium text-slate-500">Urg</label>
                         <select
                           value={editForm.urgency}
-                          onChange={(e) => setEditForm((f) => ({ ...f, urgency: Number(e.target.value) }))}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, urgency: Number(e.target.value) }))
+                          }
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
                           {([0, 1, 2] as const).map((i) => (
-                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
+                            <option key={i} value={i}>
+                              {SCORE_LABELS[i]}
+                            </option>
                           ))}
                         </select>
                         <label className="text-xs font-medium text-slate-500">Impact</label>
                         <select
                           value={editForm.expected_impact}
-                          onChange={(e) => setEditForm((f) => ({ ...f, expected_impact: Number(e.target.value) }))}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, expected_impact: Number(e.target.value) }))
+                          }
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
                           {([0, 1, 2] as const).map((i) => (
-                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
+                            <option key={i} value={i}>
+                              {SCORE_LABELS[i]}
+                            </option>
                           ))}
                         </select>
                         <label className="text-xs font-medium text-slate-500">Supporters</label>
                         <select
                           value={editForm.supporter_points}
-                          onChange={(e) => setEditForm((f) => ({ ...f, supporter_points: Number(e.target.value) }))}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, supporter_points: Number(e.target.value) }))
+                          }
                           className="rounded border border-slate-300 px-2 py-1 text-sm"
                         >
                           {([0, 1, 2] as const).map((i) => (
-                            <option key={i} value={i}>{SCORE_LABELS[i]}</option>
+                            <option key={i} value={i}>
+                              {SCORE_LABELS[i]}
+                            </option>
                           ))}
                         </select>
                         <span className="text-xs text-slate-500">
-                          → {(editForm.importance + editForm.urgency + editForm.expected_impact) * 2 + editForm.supporter_points}/14
+                          →{" "}
+                          {(editForm.importance + editForm.urgency + editForm.expected_impact) * 2 +
+                            editForm.supporter_points}
+                          /14
                         </span>
                       </div>
                       <div className="flex gap-2">
@@ -638,7 +702,9 @@ export function SurveyModeration() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => setExpandedUpvotesId((prev) => (prev === o.id ? null : o.id))}
+                            onClick={() =>
+                              setExpandedUpvotesId((prev) => (prev === o.id ? null : o.id))
+                            }
                             className={`p-1.5 rounded ${
                               (o.pending_upvotes_count ?? 0) > 0
                                 ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
@@ -656,23 +722,41 @@ export function SurveyModeration() {
                       </p>
                       {o.admin_notes && o.admin_notes.trim() && (
                         <div className="mt-2 rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
-                          <p className="text-xs font-medium text-slate-500 mb-0.5">Administrator Comments & Notes</p>
-                          <p className="text-sm text-slate-700 whitespace-pre-wrap">{o.admin_notes}</p>
+                          <p className="text-xs font-medium text-slate-500 mb-0.5">
+                            Administrator Comments & Notes
+                          </p>
+                          <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                            {o.admin_notes}
+                          </p>
                         </div>
                       )}
                       {o.disclosed_pii && Object.keys(o.disclosed_pii).length > 0 && (
                         <p className="text-xs text-slate-500 mt-0.5">
-                          PII: {Object.entries(o.disclosed_pii).map(([k, v]) => `${k}=${v}`).join(", ")}
+                          PII:{" "}
+                          {["Name", "Email", "Department"]
+                            .map((k) => {
+                              const v = o.disclosed_pii![k];
+                              return v ? `${k}=${v}` : null;
+                            })
+                            .filter(Boolean)
+                            .join(", ") ||
+                            Object.entries(o.disclosed_pii)
+                              .map(([k, v]) => `${k}=${v}`)
+                              .join(", ")}
                         </p>
                       )}
                       <div className="flex flex-wrap items-center justify-end gap-3 mt-1 text-sm text-slate-500">
                         <span>
-                          {(o.supporters ?? 0)} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""}
+                          {o.supporters ?? 0} supporter{(o.supporters ?? 0) !== 1 ? "s" : ""}
                         </span>
                         <StarRating score={o.priority_score} />
                       </div>
                       {expandedUpvotesId === o.id && (
-                        <UpvotesSection surveyId={surveyId!} opinionId={o.id} onClose={() => setExpandedUpvotesId(null)} />
+                        <UpvotesSection
+                          surveyId={surveyId!}
+                          opinionId={o.id}
+                          onClose={() => setExpandedUpvotesId(null)}
+                        />
                       )}
                     </>
                   )}
