@@ -1,9 +1,10 @@
-"""Admin API: survey provisioning, question definition, moderation (Phase 4)."""
+"""Admin API: survey provisioning, question definition, moderation."""
+
 import re
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,21 +13,29 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.database import get_db
 from app.models.public import Survey
-from app.models.tenant import Question, QuestionType, PublishedOpinion, RawAnswer, RawResponse, Upvote, UpvoteStatus
-from app.schemas.question import QuestionCreate, QuestionResponse
+from app.models.tenant import (
+    PublishedOpinion,
+    Question,
+    QuestionType,
+    RawAnswer,
+    RawResponse,
+    Upvote,
+    UpvoteStatus,
+)
 from app.schemas.moderation import (
+    OpinionUpdate,
+    PublishedOpinionResponse,
+    PublishOpinionCreate,
     RawAnswerWithLabel,
     RawResponseDetail,
     RawResponseListItem,
-    OpinionUpdate,
-    PublishOpinionCreate,
-    PublishedOpinionResponse,
     UpvoteResponse,
     UpvoteUpdate,
     _score_from_components,
 )
+from app.schemas.question import QuestionCreate, QuestionResponse
 from app.schemas.survey import SurveyCreate, SurveyCreateResponse, SurveyResponse
-from app.services.survey_provisioning import create_survey, delete_survey, _generate_access_code
+from app.services.survey_provisioning import _generate_access_code, create_survey, delete_survey
 
 
 def _require_admin(admin_api_key: str | None = Header(default=None, alias="X-Admin-API-Key")):
@@ -196,7 +205,9 @@ async def create_question(
         id=q.id,
         survey_id=str(q.survey_id),
         label=q.label,
-        question_type=q.question_type.value if hasattr(q.question_type, "value") else str(q.question_type),
+        question_type=q.question_type.value
+        if hasattr(q.question_type, "value")
+        else str(q.question_type),
         options=q.options,
         is_required=q.is_required,
         is_personal_data=q.is_personal_data,
@@ -219,7 +230,9 @@ async def list_questions(
             id=q.id,
             survey_id=str(q.survey_id),
             label=q.label,
-            question_type=q.question_type.value if hasattr(q.question_type, "value") else str(q.question_type),
+            question_type=q.question_type.value
+            if hasattr(q.question_type, "value")
+            else str(q.question_type),
             options=q.options,
             is_required=q.is_required,
             is_personal_data=q.is_personal_data,
@@ -249,10 +262,12 @@ async def delete_question(
     return {"deleted": question_id}
 
 
-# --- Phase 4: Moderation & Published Opinions ---
+# --- Moderation & Published Opinions ---
 
 
-def _priority_score(importance: int, urgency: int, expected_impact: int, supporter_count: int = 0) -> int:
+def _priority_score(
+    importance: int, urgency: int, expected_impact: int, supporter_count: int = 0
+) -> int:
     """14-point scale: (Imp+Urg+Exp)*2 + supporters(0-2). Supporters mapped: 0->0, 1-2->1, 3+->2."""
     supporters_pts = min(2, (supporter_count > 0) + (supporter_count >= 3))
     return (importance + urgency + expected_impact) * 2 + supporters_pts
@@ -280,7 +295,7 @@ async def _get_tenant_schema(db: AsyncSession, survey_id: UUID) -> str:
             status_code=404,
             detail=f"Survey not found: {survey_id}. Check GET /admin/surveys and ensure the same DB is used.",
         )
-    schema_name = row["schema_name"]
+    schema_name = str(row["schema_name"])
     if not _SCHEMA_NAME_PATTERN.match(schema_name):
         raise HTTPException(status_code=400, detail="Invalid schema name")
     return schema_name
@@ -326,31 +341,23 @@ async def list_responses(
     db: AsyncSession = Depends(get_db),
     _: None = Depends(_require_admin),
 ):
-    """List raw responses (alias: same as /submissions). Kept for backward compatibility."""
+    """List raw responses for moderation (also exposed at /moderation/{id}/submissions)."""
     return await _list_raw_responses_impl(db, survey_id)
 
 
-@router.get("/surveys/{survey_id}/submissions", response_model=list[RawResponseListItem])
+@router.get("/moderation/{survey_id}/submissions", response_model=list[RawResponseListItem])
 async def list_submissions(
     survey_id: UUID,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(_require_admin),
 ):
-    """List raw responses for moderation."""
+    """List raw responses for moderation workspace."""
     return await _list_raw_responses_impl(db, survey_id)
 
 
-@router.get("/moderation/{survey_id}/submissions", response_model=list[RawResponseListItem])
-async def list_submissions_alt(
-    survey_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    _: None = Depends(_require_admin),
-):
-    """List raw responses (alternative path under /admin/moderation/ to avoid any route conflicts)."""
-    return await _list_raw_responses_impl(db, survey_id)
-
-
-@router.patch("/moderation/{survey_id}/opinions/{opinion_id}", response_model=PublishedOpinionResponse)
+@router.patch(
+    "/moderation/{survey_id}/opinions/{opinion_id}", response_model=PublishedOpinionResponse
+)
 async def update_opinion(
     survey_id: UUID,
     opinion_id: int,
@@ -425,8 +432,7 @@ async def list_opinions_alt(
             .group_by(Upvote.opinion_id)
         )
         supporters_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in supporters_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in supporters_result.all()
         }
         pending_result = await db.execute(
             select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
@@ -437,8 +443,7 @@ async def list_opinions_alt(
             .group_by(Upvote.opinion_id)
         )
         pending_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in pending_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in pending_result.all()
         }
     return [
         PublishedOpinionResponse(
@@ -460,7 +465,9 @@ async def list_opinions_alt(
     ]
 
 
-@router.get("/moderation/{survey_id}/opinions/{opinion_id}/upvotes", response_model=list[UpvoteResponse])
+@router.get(
+    "/moderation/{survey_id}/opinions/{opinion_id}/upvotes", response_model=list[UpvoteResponse]
+)
 async def list_upvotes_for_opinion(
     survey_id: UUID,
     opinion_id: int,
@@ -470,7 +477,9 @@ async def list_upvotes_for_opinion(
     """List upvotes (with raw_comment, published_comment, status) for an opinion. For moderation."""
     schema_name = await _get_tenant_schema(db, survey_id)
     await db.execute(text(f"SET search_path TO {schema_name}"))
-    result = await db.execute(select(Upvote).where(Upvote.opinion_id == opinion_id).order_by(Upvote.created_at.desc()))
+    result = await db.execute(
+        select(Upvote).where(Upvote.opinion_id == opinion_id).order_by(Upvote.created_at.desc())
+    )
     upvotes = result.scalars().all()
     return [
         UpvoteResponse(
@@ -509,7 +518,9 @@ async def update_upvote(
         try:
             upvote.status = UpvoteStatus(body.status)
         except ValueError:
-            raise HTTPException(status_code=400, detail="status must be pending, published, or rejected")
+            raise HTTPException(
+                status_code=400, detail="status must be pending, published, or rejected"
+            )
     await db.flush()
     await db.refresh(upvote)
     return UpvoteResponse(
@@ -528,9 +539,7 @@ async def update_upvote(
 async def _list_raw_responses_impl(db: AsyncSession, survey_id: UUID) -> list[RawResponseListItem]:
     schema_name = await _get_tenant_schema(db, survey_id)
     await db.execute(text(f"SET search_path TO {schema_name}"))
-    result = await db.execute(
-        select(RawResponse).order_by(RawResponse.submitted_at.desc())
-    )
+    result = await db.execute(select(RawResponse).order_by(RawResponse.submitted_at.desc()))
     responses = result.scalars().all()
     return [
         RawResponseListItem(
@@ -560,7 +569,9 @@ async def create_opinion(
     if not response:
         raise HTTPException(status_code=404, detail="Raw response not found")
     questions_result = await db.execute(
-        select(Question).where(Question.survey_id == survey_id, Question.is_personal_data.is_(True)).order_by(Question.id)
+        select(Question)
+        .where(Question.survey_id == survey_id, Question.is_personal_data.is_(True))
+        .order_by(Question.id)
     )
     pii_questions = questions_result.scalars().all()
     answers_by_qid = {a.question_id: a for a in response.raw_answers}
@@ -569,7 +580,7 @@ async def create_opinion(
         a = answers_by_qid.get(q.id)
         if a and a.is_disclosure_agreed and a.answer_text and a.answer_text.strip():
             disclosed_pii[q.label] = a.answer_text.strip()
-    supporter_count = 0  # Phase 5 will add upvotes
+    supporter_count = 0
     supporter_pts = _supporters_pts_from_count(supporter_count)
     priority = _priority_score(
         body.importance,
@@ -630,8 +641,7 @@ async def list_opinions(
             .group_by(Upvote.opinion_id)
         )
         supporters_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in supporters_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in supporters_result.all()
         }
         pending_result = await db.execute(
             select(Upvote.opinion_id, func.count(Upvote.id).label("cnt"))
@@ -642,8 +652,7 @@ async def list_opinions(
             .group_by(Upvote.opinion_id)
         )
         pending_by_opinion = {
-            row[0]: int(row[1]) if row[1] is not None else 0
-            for row in pending_result.all()
+            row[0]: int(row[1]) if row[1] is not None else 0 for row in pending_result.all()
         }
     return [
         PublishedOpinionResponse(

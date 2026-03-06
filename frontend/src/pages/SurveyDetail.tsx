@@ -1,9 +1,25 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listQuestions, createQuestion, getSurvey, deleteQuestion, resetSurveyAccessCode } from "@/lib/api";
+import {
+  listQuestions,
+  createQuestion,
+  getSurvey,
+  deleteQuestion,
+  resetSurveyAccessCode,
+} from "@/lib/api";
 import type { QuestionCreatePayload } from "@/types/api";
-import { ArrowLeft, Plus, ListChecks, Trash2, ExternalLink, Gavel, Copy, Check, KeyRound } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  ListChecks,
+  Trash2,
+  ExternalLink,
+  Gavel,
+  Copy,
+  Check,
+  KeyRound,
+} from "lucide-react";
 
 const QUESTION_TYPES: QuestionCreatePayload["question_type"][] = [
   "text",
@@ -59,7 +75,9 @@ function ManagerAccessCodeBlock({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-600">Not stored (or created before this feature).</span>
+          <span className="text-sm text-slate-600">
+            Not stored (or created before this feature).
+          </span>
           <button
             type="button"
             onClick={() => resetMutation.mutate()}
@@ -97,23 +115,25 @@ export function SurveyDetail() {
     enabled: !!surveyId,
   });
 
-  const { data: questions, isLoading, error } = useQuery({
+  const {
+    data: questions,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["questions", surveyId],
     queryFn: () => listQuestions(surveyId!),
     enabled: !!surveyId,
   });
 
   const deleteQuestionMutation = useMutation({
-    mutationFn: (questionId: number) =>
-      deleteQuestion(surveyId!, questionId),
+    mutationFn: (questionId: number) => deleteQuestion(surveyId!, questionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions", surveyId] });
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: QuestionCreatePayload) =>
-      createQuestion(surveyId!, payload),
+    mutationFn: (payload: QuestionCreatePayload) => createQuestion(surveyId!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions", surveyId] });
       setShowForm(false);
@@ -206,9 +226,7 @@ export function SurveyDetail() {
           <h2 className="font-medium text-slate-800 mb-4">New question</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Label
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Label</label>
               <input
                 type="text"
                 value={label}
@@ -219,9 +237,7 @@ export function SurveyDetail() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Type
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
               <select
                 value={questionType}
                 onChange={(e) =>
@@ -311,10 +327,7 @@ export function SurveyDetail() {
       ) : (
         <ul className="space-y-3">
           {questions.map((q) => (
-            <li
-              key={q.id}
-              className="rounded-lg border border-slate-200 bg-white p-4"
-            >
+            <li key={q.id} className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900">{q.label}</p>
@@ -324,9 +337,7 @@ export function SurveyDetail() {
                     {q.is_personal_data && " · PII"}
                   </p>
                   {q.options?.length ? (
-                    <p className="text-xs text-slate-400 mt-1">
-                      Options: {q.options.join(", ")}
-                    </p>
+                    <p className="text-xs text-slate-400 mt-1">Options: {q.options.join(", ")}</p>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

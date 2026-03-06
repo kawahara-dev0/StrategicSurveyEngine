@@ -1,24 +1,27 @@
 """Tenant schema: per-survey tables (questions, raw_responses, raw_answers, published_opinions, upvotes)."""
+
 import enum
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.models.base import Base, timestamp_created
+from app.models.base import Base
 
 
-class QuestionType(str, enum.Enum):
+class QuestionType(enum.StrEnum):
     text = "text"
     textarea = "textarea"
     select = "select"
     radio = "radio"
 
 
-class UpvoteStatus(str, enum.Enum):
+class UpvoteStatus(enum.StrEnum):
     pending = "pending"
     published = "published"
     rejected = "rejected"

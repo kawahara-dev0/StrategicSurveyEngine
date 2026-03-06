@@ -1,10 +1,11 @@
 """Application configuration from environment."""
+
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# プロジェクトルートの .env を読む（backend/app/config.py -> ../../.env）
-_ROOT_ENV = Path(__file__).resolve().parent.parent.parent / ".env"  # backend/app -> backend -> ルート
+# Load .env from project root (backend/app/config.py -> ../../.env)
+_ROOT_ENV = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -22,14 +23,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/strategic_survey"
     database_echo: bool = False
 
-    # Schema names
-    public_schema: str = "public"
-
-    # Admin API (Phase 2)
+    # Admin API
     admin_api_key: str = ""
 
-    # Manager JWT (Phase 6)
-    jwt_secret_key: str = "change-me-in-production"
+    # Manager JWT
+    jwt_secret_key: str = "change-me-in-production-min-32-bytes-required"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 480  # 8 hours
 

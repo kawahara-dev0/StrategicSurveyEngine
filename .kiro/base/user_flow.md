@@ -1,7 +1,8 @@
 # Project: Strategic Survey Engine
 
 ## Core Concept
-a
+
+Strategic feedback collection platform. Admins define surveys dynamically; contributors submit opinions anonymously via a "Search-First" flow (browse existing opinions → upvote if similar exists → post new if unique). Moderators review and publish content; managers analyze and evaluate.
 
 ## User Flows
 

@@ -1,15 +1,17 @@
 """Alembic environment: use app config and metadata for migrations."""
+
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
-
 from app.config import settings
-from app.models.base import Base
 
 # Import all models so Base.metadata includes every table
-from app.models import public  # noqa: F401
-from app.models import tenant  # noqa: F401
+from app.models import (
+    public,  # noqa: F401
+    tenant,  # noqa: F401
+)
+from app.models.base import Base
+from sqlalchemy import engine_from_config, pool
 
 config = context.config
 

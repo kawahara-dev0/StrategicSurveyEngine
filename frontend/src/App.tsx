@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AdminGuard } from "@/components/AdminGuard";
 import { Home } from "@/pages/Home";
@@ -20,8 +20,6 @@ export default function App() {
             <Route index element={<SurveyList />} />
             <Route path="surveys/new" element={<SurveyCreate />} />
             <Route path="surveys/:surveyId/moderation" element={<SurveyModeration />} />
-            <Route path="surveys/:surveyId/responses" element={<Navigate to="../moderation" replace />} />
-            <Route path="surveys/:surveyId/responses/:responseId" element={<Navigate to="../moderation" replace />} />
             <Route path="surveys/:surveyId" element={<SurveyDetail />} />
           </Route>
           <Route path="manager/:surveyId" element={<ManagerDashboard />} />

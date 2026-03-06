@@ -37,16 +37,12 @@ export function SurveyCreate() {
     return (
       <div className="max-w-lg mx-auto">
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-6">
-          <h2 className="text-lg font-semibold text-emerald-900 mb-4">
-            Survey created
-          </h2>
+          <h2 className="text-lg font-semibold text-emerald-900 mb-4">Survey created</h2>
           <p className="text-sm text-emerald-800 mb-2">
             Save the Access Code — it is shown only once.
           </p>
           <div className="flex items-center gap-2 bg-white rounded-lg border border-emerald-200 p-3">
-            <code className="flex-1 font-mono text-lg tracking-wider">
-              {created.access_code}
-            </code>
+            <code className="flex-1 font-mono text-lg tracking-wider">{created.access_code}</code>
             <button
               type="button"
               onClick={copyAccessCode}
@@ -92,9 +88,7 @@ export function SurveyCreate() {
         onSubmit={handleSubmit}
         className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
       >
-        <label className="block text-sm font-medium text-slate-700 mb-2">
-          Survey name
-        </label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">Survey name</label>
         <input
           type="text"
           value={name}
@@ -115,9 +109,7 @@ export function SurveyCreate() {
         />
         {mutation.isError && (
           <p className="mt-2 text-sm text-red-600">
-            {mutation.error instanceof Error
-              ? mutation.error.message
-              : "Failed to create survey"}
+            {mutation.error instanceof Error ? mutation.error.message : "Failed to create survey"}
           </p>
         )}
         <div className="mt-4 flex gap-3">

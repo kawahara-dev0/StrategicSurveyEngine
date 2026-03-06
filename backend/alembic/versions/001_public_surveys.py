@@ -5,21 +5,21 @@ Revises:
 Create Date: Public schema for survey registry
 
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
-# revision identifiers, used by Alembic.
 revision: str = "001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 既に型がある場合はスキップ（リトライ時や DuplicateObject 対策）
+    # Skip if type already exists (idempotent for DuplicateObject)
     op.execute(
         """
         DO $$ BEGIN
@@ -45,6 +45,8 @@ def upgrade() -> None:
         sa.Column("status", survey_status_type, nullable=False),
         sa.Column("contract_end_date", sa.Date(), nullable=True),
         sa.Column("deletion_due_date", sa.Date(), nullable=True),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column("access_code_plain", sa.String(length=64), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         schema="public",
     )
