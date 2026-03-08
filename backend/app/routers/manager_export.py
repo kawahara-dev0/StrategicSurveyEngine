@@ -199,9 +199,7 @@ def build_pdf(
     story = []
     story.append(Paragraph("Survey Opinions Report", styles["Title"]))
     if survey_name:
-        story.append(
-            Paragraph(f"<b>Survey: {_esc(survey_name)}</b>", styles["Normal"])
-        )
+        story.append(Paragraph(f"<b>Survey: {_esc(survey_name)}</b>", styles["Normal"]))
     story.append(Spacer(1, 14))
     for o in opinions:
         supporters = supporters_by_opinion.get(o.id, 0)
@@ -216,41 +214,55 @@ def build_pdf(
         has_admin = bool(admin_notes and admin_notes.strip())
         # Build table rows: [Label, Content]
         rows = []
-        rows.append([
-            Paragraph(
-                f"<b>#{o.id}</b> Score: {o.priority_score} ({rating}) · Supporters: {supporters}",
-                styles["Heading2"],
-            )
-        ])
+        rows.append(
+            [
+                Paragraph(
+                    f"<b>#{o.id}</b> Score: {o.priority_score} ({rating}) · Supporters: {supporters}",
+                    styles["Heading2"],
+                )
+            ]
+        )
         title_esc = _esc(o.title or "")
-        rows.append([
-            Paragraph(f"<b>{title_esc}</b>", body_small),
-        ])
-        rows.append([
-            Paragraph(_esc_br(o.content or ""), body_small),
-        ])
+        rows.append(
+            [
+                Paragraph(f"<b>{title_esc}</b>", body_small),
+            ]
+        )
+        rows.append(
+            [
+                Paragraph(_esc_br(o.content or ""), body_small),
+            ]
+        )
         if has_admin:
             admin_esc = _esc_br((admin_notes or "").strip())
-            rows.append([
-                Paragraph(
-                    f'<font size="8" color="#555555">Administrator Comments</font><br/>{admin_esc}',
-                    body_small,
-                )
-            ])
+            rows.append(
+                [
+                    Paragraph(
+                        f'<font size="8" color="#555555">Administrator Comments</font><br/>{admin_esc}',
+                        body_small,
+                    )
+                ]
+            )
         if pii:
             pii_esc = _esc_br(pii)
-            rows.append([
-                Paragraph(f'<font size="8" color="#555555">PII</font><br/>{pii_esc}', body_small),
-            ])
-        rows.append([
-            Paragraph(
-                f'<font size="8" color="#555555">Imp</font> {imp} · '
-                f'<font size="8" color="#555555">Urg</font> {urg} · '
-                f'<font size="8" color="#555555">Impact</font> {impact} · '
-                f'<font size="8" color="#555555">Supporters (pts)</font> {supp_pts}',
-                body_small,
+            rows.append(
+                [
+                    Paragraph(
+                        f'<font size="8" color="#555555">PII</font><br/>{pii_esc}', body_small
+                    ),
+                ]
             )
-        ])
+        rows.append(
+            [
+                Paragraph(
+                    f'<font size="8" color="#555555">Imp</font> {imp} · '
+                    f'<font size="8" color="#555555">Urg</font> {urg} · '
+                    f'<font size="8" color="#555555">Impact</font> {impact} · '
+                    f'<font size="8" color="#555555">Supporters (pts)</font> {supp_pts}',
+                    body_small,
+                )
+            ]
+        )
         if upvotes:
             comments_parts = []
             for u in upvotes:
@@ -269,23 +281,27 @@ def build_pdf(
                         line += f" <i>[{', '.join(parts)}]</i>"
                 comments_parts.append(line)
             if comments_parts:
-                rows.append([
-                    Paragraph(
-                        '<font size="8" color="#555555">Additional comments</font><br/>'
-                        + "<br/>".join(comments_parts),
-                        body_small,
-                    )
-                ])
+                rows.append(
+                    [
+                        Paragraph(
+                            '<font size="8" color="#555555">Additional comments</font><br/>'
+                            + "<br/>".join(comments_parts),
+                            body_small,
+                        )
+                    ]
+                )
         tbl = Table(rows, colWidths=[col_width])
         tbl.setStyle(
-            TableStyle([
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f0f0f0")),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-                ("LEFTPADDING", (0, 0), (-1, -1), 12),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-            ])
+            TableStyle(
+                [
+                    ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f0f0f0")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                ]
+            )
         )
         story.append(tbl)
         story.append(Spacer(1, 14))

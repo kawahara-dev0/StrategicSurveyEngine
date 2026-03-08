@@ -500,11 +500,13 @@ async def list_opinions_alt(
         pending_by_opinion = {
             row[0]: int(row[1]) if row[1] is not None else 0 for row in pending_result.all()
         }
+
     # Prioritize opinions with pending upvotes, then by updated_at desc
     def _opinion_sort_key(o: PublishedOpinion) -> tuple:
         has_pending = 0 if pending_by_opinion.get(o.id, 0) > 0 else 1
         ts = o.updated_at.timestamp() if o.updated_at else 0.0
         return (has_pending, -ts)
+
     sorted_opinions = sorted(opinions, key=_opinion_sort_key)
     return [
         PublishedOpinionResponse(
@@ -727,5 +729,3 @@ async def create_opinion(
         is_disclosure_agreed=opinion.is_disclosure_agreed,
         disclosed_pii=opinion.disclosed_pii,
     )
-
-
