@@ -102,7 +102,8 @@ class PublishedOpinion(Base):
     urgency: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
     expected_impact: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
     supporter_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0-2
-    disclosed_pii: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    is_disclosure_agreed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    disclosed_pii: Mapped[dict | None] = mapped_column(JSONB, nullable=True)  # {label: value}
     admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

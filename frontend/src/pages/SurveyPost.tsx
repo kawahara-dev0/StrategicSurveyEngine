@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSurveyQuestions, submitSurveyResponse } from "@/lib/api";
 import type { Question, AnswerSubmit } from "@/types/api";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, CircleHelp, Send } from "lucide-react";
 
 export function SurveyPost() {
   const { surveyId } = useParams<{ surveyId: string }>();
@@ -11,6 +11,23 @@ export function SurveyPost() {
   const queryClient = useQueryClient();
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [disclosureAgreed, setDisclosureAgreed] = useState(false);
+  const [inputHandlingExpanded, setInputHandlingExpanded] = useState(false);
+  const [disclosureHelpOpen, setDisclosureHelpOpen] = useState(false);
+  const disclosureHelpRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        disclosureHelpOpen &&
+        disclosureHelpRef.current &&
+        !disclosureHelpRef.current.contains(e.target as Node)
+      ) {
+        setDisclosureHelpOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [disclosureHelpOpen]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["survey-questions", surveyId],
@@ -128,7 +145,33 @@ export function SurveyPost() {
       </button>
 
       <h1 className="text-xl font-semibold text-slate-800 mb-1">{data.survey_name}</h1>
-      <p className="text-sm text-slate-500 mb-6">Share your feedback</p>
+      <p className="text-sm text-slate-500 mb-2">Share your feedback</p>
+      <button
+        type="button"
+        onClick={() => setInputHandlingExpanded((prev) => !prev)}
+        className="text-sm text-slate-600 hover:text-slate-800 underline mb-2 inline-block"
+      >
+        About How Your Input Is Handled
+      </button>
+      {inputHandlingExpanded && (
+        <div className="mb-6 p-3 rounded-lg bg-slate-100 border border-slate-200 text-sm text-slate-700">
+          <ul className="space-y-2 list-disc list-inside">
+            <li>
+              Your input will be managed only by the external Support Specialist (a third-party
+              facilitator).
+            </li>
+            <li>Your input will never affect your evaluation or working conditions in any way.</li>
+            <li>
+              If any part of your submission could reveal personal information or uses strong
+              language, it will be adjusted before being shared internally.
+            </li>
+            <li>
+              All responses will be reviewed, categorized, and recorded with care, and used
+              appropriately to support team improvements.
+            </li>
+          </ul>
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
@@ -146,16 +189,40 @@ export function SurveyPost() {
         </div>
 
         {data.questions.some((q) => q.is_personal_data) && (
-          <label className="flex items-center gap-2 cursor-pointer mt-4 pt-4 border-t border-slate-200 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={disclosureAgreed}
-              onChange={(e) => setDisclosureAgreed(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            I agree to disclose my personal information (above) to managers for evaluation or
-            hearings.
-          </label>
+          <div className="mt-4 pt-4 border-t border-slate-200" ref={disclosureHelpRef}>
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={disclosureAgreed}
+                onChange={(e) => setDisclosureAgreed(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              <span>
+                I agree to disclose my personal information (above) to managers for evaluation or
+                hearings.
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDisclosureHelpOpen((prev) => !prev);
+                }}
+                className="shrink-0 p-0.5 text-slate-400 hover:text-slate-600 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                aria-label="Learn more about this option"
+              >
+                <CircleHelp className="w-4 h-4" />
+              </button>
+            </label>
+            {disclosureHelpOpen && (
+              <div className="mt-2 p-3 rounded-lg bg-slate-100 border border-slate-200 text-sm text-slate-700">
+                <p>
+                  If you opt in and your input leads to meaningful improvements, we would be happy
+                  to acknowledge your contribution. Such recognition may support your future
+                  discussions with your manager, depending on your organization&apos;s approach.
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {submitMutation.isError && (

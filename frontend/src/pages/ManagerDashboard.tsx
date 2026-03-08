@@ -55,7 +55,7 @@ function ManagerUpvotes({ surveyId, opinionId }: { surveyId: string; opinionId: 
               u.disclosed_pii &&
               Object.keys(u.disclosed_pii).length > 0 && (
                 <p className="text-xs text-slate-600 mt-1">
-                  PII (disclosed):{" "}
+                  PII:{" "}
                   {Object.entries(u.disclosed_pii)
                     .map(([k, v]) => `${k}=${v}`)
                     .join(", ")}
@@ -246,7 +246,7 @@ export function ManagerDashboard() {
               )}
               {o.disclosed_pii && Object.keys(o.disclosed_pii).length > 0 && (
                 <p className="text-xs text-emerald-700 mt-2 font-medium">
-                  PII (disclosed):{" "}
+                  PII:{" "}
                   {Object.entries(o.disclosed_pii)
                     .map(([k, v]) => `${k}=${v}`)
                     .join(", ")}

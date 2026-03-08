@@ -10,6 +10,7 @@ import {
   getSurvey,
   listUpvotesForOpinion,
   updateUpvote,
+  convertResponseToSupport,
 } from "@/lib/api";
 import type { PublishOpinionPayload, PublishedOpinion, UpvoteItem } from "@/types/api";
 import { ArrowLeft, Send, FileText, Star, Pencil, Check, MessageSquare } from "lucide-react";
@@ -89,25 +90,118 @@ function UpvotesSection({
         </button>
       </div>
       {(() => {
-        const withComment = upvotes.filter(
-          (u) => u.raw_comment != null && u.raw_comment.trim() !== ""
+        const publishedComments = upvotes.filter(
+          (u) =>
+            u.status === "published" &&
+            u.published_comment != null &&
+            u.published_comment.trim() !== ""
         );
-        if (withComment.length === 0) {
-          return <p className="text-sm text-slate-500">No additional comments to moderate.</p>;
+        const publishedIds = new Set(publishedComments.map((u) => u.id));
+        const toModerate = upvotes.filter(
+          (u) => u.raw_comment != null && u.raw_comment.trim() !== "" && !publishedIds.has(u.id)
+        );
+        const hasAny = toModerate.length > 0 || publishedComments.length > 0;
+
+        if (!hasAny) {
+          return <p className="text-sm text-slate-500">No additional comments.</p>;
         }
         return (
           <ul className="space-y-3">
-            {withComment.map((u) => (
+            {publishedComments.map((u) => (
+              <li
+                key={`pub-${u.id}`}
+                className="rounded border border-slate-200 bg-emerald-50/50 p-2 text-sm"
+              >
+                {u.disclosed_pii && Object.keys(u.disclosed_pii).length > 0 && (
+                  <p className="mb-1 text-xs text-slate-600">
+                    PII: Name: {u.disclosed_pii["Name"] ?? "—"}, Email:{" "}
+                    {u.disclosed_pii["Email"] ?? "—"}, Department:{" "}
+                    {u.disclosed_pii["Department"] ?? "—"}{" "}
+                    <span
+                      className={
+                        u.is_disclosure_agreed
+                          ? "text-emerald-700 font-medium"
+                          : "text-amber-700 font-medium"
+                      }
+                    >
+                      {u.is_disclosure_agreed ? "(Disclosure agreed)" : "(Disclosure disagreed)"}
+                    </span>
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <span className="inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                    published
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 items-start">
+                  <div className="min-w-[200px]">
+                    <label className="block text-xs text-slate-500">Published comment</label>
+                    <textarea
+                      value={getEdit(u).published_comment}
+                      onChange={(e) =>
+                        setEdits((prev) => ({
+                          ...prev,
+                          [u.id]: { ...getEdit(u), published_comment: e.target.value },
+                        }))
+                      }
+                      rows={2}
+                      className="w-full rounded border border-slate-300 px-2 py-1 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-500">Status</label>
+                    <select
+                      value={getEdit(u).status}
+                      onChange={(e) =>
+                        setEdits((prev) => ({
+                          ...prev,
+                          [u.id]: { ...getEdit(u), status: e.target.value },
+                        }))
+                      }
+                      className="rounded border border-slate-300 px-2 py-1 text-xs"
+                    >
+                      <option value="pending">pending</option>
+                      <option value="published">published</option>
+                      <option value="rejected">rejected</option>
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateMutation.mutate({
+                        upvoteId: u.id,
+                        payload: {
+                          published_comment: getEdit(u).published_comment.trim() || null,
+                          status: getEdit(u).status,
+                        },
+                      })
+                    }
+                    disabled={updateMutation.isPending}
+                    className="px-2 py-1 rounded bg-slate-700 text-white text-xs hover:bg-slate-600 disabled:opacity-50 self-end"
+                  >
+                    Save
+                  </button>
+                </div>
+              </li>
+            ))}
+            {toModerate.map((u) => (
               <li key={u.id} className="rounded border border-slate-200 bg-slate-50/50 p-2 text-sm">
-                {u.is_disclosure_agreed &&
-                  u.disclosed_pii &&
-                  Object.keys(u.disclosed_pii).length > 0 && (
-                    <p className="text-slate-600 mb-1 text-xs">
-                      Name: {u.disclosed_pii["Name"] ?? "—"}, Email:{" "}
-                      {u.disclosed_pii["Email"] ?? "—"}, Department:{" "}
-                      {u.disclosed_pii["Department"] ?? "—"}
-                    </p>
-                  )}
+                {u.disclosed_pii && Object.keys(u.disclosed_pii).length > 0 && (
+                  <p className="mb-1 text-xs text-slate-600">
+                    PII: Name: {u.disclosed_pii["Name"] ?? "—"}, Email:{" "}
+                    {u.disclosed_pii["Email"] ?? "—"}, Department:{" "}
+                    {u.disclosed_pii["Department"] ?? "—"}{" "}
+                    <span
+                      className={
+                        u.is_disclosure_agreed
+                          ? "text-emerald-700 font-medium"
+                          : "text-amber-700 font-medium"
+                      }
+                    >
+                      {u.is_disclosure_agreed ? "(Disclosure agreed)" : "(Disclosure disagreed)"}
+                    </span>
+                  </p>
+                )}
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span
                     className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
@@ -220,19 +314,16 @@ export function SurveyModeration() {
     enabled: !!surveyId,
   });
 
-  const publishedResponseIds = useMemo(
-    () => new Set(opinions.map((o) => o.raw_response_id)),
-    [opinions]
-  );
   const sortedResponses = useMemo(() => {
     return [...responses].sort((a, b) => {
-      const aPublished = publishedResponseIds.has(a.id);
-      const bPublished = publishedResponseIds.has(b.id);
-      if (!aPublished && bPublished) return -1;
-      if (aPublished && !bPublished) return 1;
-      return 0;
+      const aPending = a.status === "pending" ? 0 : 1;
+      const bPending = b.status === "pending" ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending; // pending first
+      const ta = new Date(a.submitted_at).getTime();
+      const tb = new Date(b.submitted_at).getTime();
+      return tb - ta; // newest first
     });
-  }, [responses, publishedResponseIds]);
+  }, [responses]);
 
   const publishMutation = useMutation({
     mutationFn: (payload: PublishOpinionPayload) => createOpinion(surveyId!, payload),
@@ -245,6 +336,53 @@ export function SurveyModeration() {
       setAdminNotes("");
     },
   });
+
+  const [convertFormOpen, setConvertFormOpen] = useState(false);
+  const [convertResponseId, setConvertResponseId] = useState("");
+  const [convertOpinionId, setConvertOpinionId] = useState<number | "">("");
+  const [convertComment, setConvertComment] = useState("");
+  const [convertDisclosureAgreed, setConvertDisclosureAgreed] = useState(false);
+  const [convertName, setConvertName] = useState("");
+  const [convertEmail, setConvertEmail] = useState("");
+  const [convertDept, setConvertDept] = useState("");
+  const convertMutation = useMutation({
+    mutationFn: () =>
+      convertResponseToSupport(surveyId!, convertResponseId.trim(), {
+        opinion_id: Number(convertOpinionId),
+        published_comment: convertComment.trim(),
+        is_disclosure_agreed: convertDisclosureAgreed,
+        disclosed_pii:
+          convertName.trim() || convertEmail.trim() || convertDept.trim()
+            ? {
+                Name: convertName.trim() || undefined,
+                Email: convertEmail.trim() || undefined,
+                Department: convertDept.trim() || undefined,
+              }
+            : undefined,
+      }),
+    onSuccess: () => {
+      const opinionId = Number(convertOpinionId);
+      queryClient.invalidateQueries({ queryKey: ["opinions", surveyId] });
+      queryClient.invalidateQueries({ queryKey: ["responses", surveyId] });
+      if (opinionId) {
+        queryClient.invalidateQueries({ queryKey: ["upvotes", surveyId, opinionId] });
+        queryClient.invalidateQueries({ queryKey: ["manager-upvotes", surveyId, opinionId] });
+      }
+      setConvertFormOpen(false);
+      setConvertResponseId("");
+      setConvertOpinionId("");
+      setConvertComment("");
+      setConvertDisclosureAgreed(false);
+      setConvertName("");
+      setConvertEmail("");
+      setConvertDept("");
+    },
+  });
+  const handleConvertToSupport = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!convertResponseId.trim() || convertOpinionId === "") return;
+    convertMutation.mutate();
+  };
 
   const [editingOpinionId, setEditingOpinionId] = useState<number | null>(null);
   const [expandedUpvotesId, setExpandedUpvotesId] = useState<number | null>(null);
@@ -353,6 +491,153 @@ export function SurveyModeration() {
             <FileText className="w-4 h-4" />
             Submitted responses
           </h2>
+
+          {/* Convert to support */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50/50">
+            {!convertFormOpen ? (
+              <button
+                type="button"
+                onClick={() => setConvertFormOpen(true)}
+                className="w-full text-left px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg flex items-center gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Convert response to support
+              </button>
+            ) : (
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-slate-700">
+                    Convert response to support
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setConvertFormOpen(false)}
+                    className="text-xs text-slate-500 hover:text-slate-700"
+                  >
+                    Close
+                  </button>
+                </div>
+                <form onSubmit={handleConvertToSupport} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Response ID
+                    </label>
+                    <select
+                      value={convertResponseId}
+                      onChange={(e) => setConvertResponseId(e.target.value)}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                    >
+                      <option value="">-- Select response --</option>
+                      {responses
+                        .filter((r) => r.status === "pending")
+                        .map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.id} ({new Date(r.submitted_at).toLocaleString()})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                      Target opinion
+                    </label>
+                    <select
+                      value={convertOpinionId}
+                      onChange={(e) =>
+                        setConvertOpinionId(e.target.value === "" ? "" : Number(e.target.value))
+                      }
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      required
+                    >
+                      <option value="">-- Select opinion --</option>
+                      {opinions.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          #{o.id} {(o.title ?? "").slice(0, 40)}
+                          {(o.title ?? "").length > 40 ? "…" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Comment</label>
+                    <textarea
+                      value={convertComment}
+                      onChange={(e) => setConvertComment(e.target.value)}
+                      rows={2}
+                      className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      placeholder="Additional comment (as in Support)"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={convertName}
+                        onChange={(e) => setConvertName(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Email</label>
+                      <input
+                        type="text"
+                        value={convertEmail}
+                        onChange={(e) => setConvertEmail(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">
+                        Department
+                      </label>
+                      <input
+                        type="text"
+                        value={convertDept}
+                        onChange={(e) => setConvertDept(e.target.value)}
+                        className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="convert-disclosure-agreed"
+                      checked={convertDisclosureAgreed}
+                      onChange={(e) => setConvertDisclosureAgreed(e.target.checked)}
+                      className="rounded border-slate-300"
+                    />
+                    <label
+                      htmlFor="convert-disclosure-agreed"
+                      className="text-sm font-medium text-slate-600"
+                    >
+                      PII disclosure agreed
+                    </label>
+                  </div>
+                  {convertMutation.isError && (
+                    <p className="text-sm text-red-600">
+                      {convertMutation.error instanceof Error
+                        ? convertMutation.error.message
+                        : "Failed to convert"}
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={
+                      convertMutation.isPending ||
+                      !convertResponseId.trim() ||
+                      convertOpinionId === ""
+                    }
+                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 text-white rounded text-sm hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    {convertMutation.isPending ? "Converting…" : "Convert to support"}
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+
           {loadingResponses ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-slate-600 text-sm">
               Loading…
@@ -369,8 +654,15 @@ export function SurveyModeration() {
           ) : (
             <ul className="space-y-2">
               {sortedResponses.map((r) => {
-                const isPublished = publishedResponseIds.has(r.id);
                 const isSelected = selectedResponseId === r.id;
+                const statusStyling =
+                  r.status === "published"
+                    ? "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    : r.status === "converted_to_support"
+                      ? "border-slate-200 bg-amber-50/80 text-slate-600 hover:bg-amber-100"
+                      : isSelected
+                        ? "border-slate-400 bg-slate-100"
+                        : "border-slate-200 hover:bg-slate-50";
                 return (
                   <li
                     key={r.id}
@@ -386,20 +678,23 @@ export function SurveyModeration() {
                           setAdminNotes("");
                         }
                       }}
-                      className={`w-full text-left px-4 py-2 transition ${
-                        isPublished
-                          ? "border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          : isSelected
-                            ? "border-slate-400 bg-slate-100"
-                            : "border-slate-200 hover:bg-slate-50"
-                      }`}
+                      className={`w-full text-left px-4 py-2 transition ${statusStyling}`}
                     >
-                      <span className="font-mono text-xs text-slate-500">{r.id}</span>
-                      {isPublished && (
-                        <span className="ml-2 text-xs text-emerald-600 font-medium">Published</span>
-                      )}
-                      <span className="block text-sm text-slate-700">
-                        {new Date(r.submitted_at).toLocaleString()}
+                      <span className="font-mono text-xs text-slate-500 block">
+                        Response ID: {r.id}
+                      </span>
+                      <span className="flex items-center justify-between gap-2 text-sm text-slate-700 mt-0.5">
+                        <span>{new Date(r.submitted_at).toLocaleString()}</span>
+                        {r.status === "published" && (
+                          <span className="text-xs text-emerald-600 font-medium shrink-0">
+                            Published
+                          </span>
+                        )}
+                        {r.status === "converted_to_support" && (
+                          <span className="text-xs text-amber-600 font-medium shrink-0">
+                            Converted to support
+                          </span>
+                        )}
                       </span>
                     </button>
                     {isSelected && (
@@ -411,26 +706,49 @@ export function SurveyModeration() {
                             <h3 className="font-medium text-slate-800 mb-2 text-sm">
                               Response content
                             </h3>
-                            {publishedResponseIds.has(r.id) ? (
+                            {r.status === "published" ? (
                               <p className="text-sm text-slate-600 mb-4 rounded bg-slate-100 px-3 py-2">
                                 This response is already published as an opinion. It cannot be
                                 published again.
                               </p>
+                            ) : r.status === "converted_to_support" ? (
+                              <p className="text-sm text-slate-600 mb-4 rounded bg-amber-50 px-3 py-2">
+                                This response has been converted to support. It cannot be published
+                                as an opinion.
+                              </p>
                             ) : null}
                             <ul className="space-y-2 mb-4 text-sm">
-                              {responseDetail.answers.map((a) => (
-                                <li key={a.question_id} className="border-b border-slate-100 pb-2">
-                                  <span className="text-slate-500">{a.label}:</span>{" "}
-                                  <span className="text-slate-800">{a.answer_text}</span>
-                                  {a.is_disclosure_agreed && (
-                                    <span className="ml-2 text-xs text-emerald-600">
-                                      (Disclosure agreed)
-                                    </span>
-                                  )}
-                                </li>
-                              ))}
+                              {responseDetail.answers.map((a) => {
+                                const isPii =
+                                  a.is_personal_data === true ||
+                                  /^(Name|Email|Department|名前|メール|部署)$/i.test(
+                                    (a.label || "").trim()
+                                  );
+                                return (
+                                  <li
+                                    key={a.question_id}
+                                    className="border-b border-slate-100 pb-2"
+                                  >
+                                    <span className="text-slate-500">{a.label}:</span>{" "}
+                                    <span className="text-slate-800">{a.answer_text}</span>
+                                    {isPii && (
+                                      <span
+                                        className={`ml-2 text-xs ${
+                                          a.is_disclosure_agreed
+                                            ? "text-emerald-600"
+                                            : "text-amber-600"
+                                        }`}
+                                      >
+                                        {a.is_disclosure_agreed
+                                          ? "(Disclosure agreed)"
+                                          : "(Disclosure disagreed)"}
+                                      </span>
+                                    )}
+                                  </li>
+                                );
+                              })}
                             </ul>
-                            {!publishedResponseIds.has(r.id) && (
+                            {r.status === "pending" && (
                               <form onSubmit={handlePublish} className="space-y-3">
                                 <div>
                                   <label className="block text-xs font-medium text-slate-600 mb-1">
@@ -742,7 +1060,18 @@ export function SurveyModeration() {
                             .join(", ") ||
                             Object.entries(o.disclosed_pii)
                               .map(([k, v]) => `${k}=${v}`)
-                              .join(", ")}
+                              .join(", ")}{" "}
+                          <span
+                            className={
+                              o.is_disclosure_agreed
+                                ? "text-emerald-700 font-medium"
+                                : "text-amber-700 font-medium"
+                            }
+                          >
+                            {o.is_disclosure_agreed
+                              ? "(Disclosure agreed)"
+                              : "(Disclosure disagreed)"}
+                          </span>
                         </p>
                       )}
                       <div className="flex flex-wrap items-center justify-end gap-3 mt-1 text-sm text-slate-500">

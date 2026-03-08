@@ -65,6 +65,7 @@ def _tenant_ddl_statements(schema: str) -> list[str]:
             urgency INTEGER NOT NULL DEFAULT 0,
             expected_impact INTEGER NOT NULL DEFAULT 0,
             supporter_points INTEGER NOT NULL DEFAULT 0,
+            is_disclosure_agreed BOOLEAN NOT NULL DEFAULT FALSE,
             disclosed_pii JSONB,
             admin_notes TEXT,
             updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()

@@ -73,14 +73,6 @@ async def require_manager(
         raise HTTPException(status_code=403, detail="Access denied for this survey")
 
 
-class ManagerAuthRequest:
-    """Request body for manager login."""
-
-    def __init__(self, survey_id: str, access_code: str):
-        self.survey_id = survey_id
-        self.access_code = access_code
-
-
 @router.get("/{survey_id}/survey")
 async def get_manager_survey(
     survey_id: UUID,
@@ -134,7 +126,9 @@ async def list_manager_opinions(
     schema_name = await _get_tenant_schema(db, survey_id)
     await db.execute(text(f"SET search_path TO {schema_name}"))
     result = await db.execute(
-        select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
+        select(PublishedOpinion).order_by(
+            PublishedOpinion.priority_score.desc(), PublishedOpinion.id
+        )
     )
     opinions = result.scalars().all()
     opinion_ids = [o.id for o in opinions]
@@ -174,7 +168,8 @@ async def list_manager_opinions(
             supporter_points=getattr(o, "supporter_points", 0),
             supporters=supporters_by_opinion.get(o.id, 0),
             pending_upvotes_count=pending_by_opinion.get(o.id, 0),
-            disclosed_pii=o.disclosed_pii,
+            is_disclosure_agreed=getattr(o, "is_disclosure_agreed", False),
+            disclosed_pii=o.disclosed_pii if getattr(o, "is_disclosure_agreed", False) else None,
         )
         for o in opinions
     ]
@@ -204,7 +199,7 @@ async def list_manager_upvotes(
             status=u.status.value,
             created_at=u.created_at.isoformat() if u.created_at else "",
             is_disclosure_agreed=u.is_disclosure_agreed,
-            disclosed_pii=u.disclosed_pii,
+            disclosed_pii=u.disclosed_pii if u.is_disclosure_agreed else None,
         )
         for u in upvotes
     ]
@@ -234,7 +229,9 @@ async def export_survey(
     base_filename = f"Survey Opinions Report - {safe_name}"
     await db.execute(text(f"SET search_path TO {schema_name}"))
     result = await db.execute(
-        select(PublishedOpinion).order_by(PublishedOpinion.updated_at.desc(), PublishedOpinion.id)
+        select(PublishedOpinion).order_by(
+            PublishedOpinion.priority_score.desc(), PublishedOpinion.id
+        )
     )
     opinions = result.scalars().all()
     opinion_ids = [o.id for o in opinions]

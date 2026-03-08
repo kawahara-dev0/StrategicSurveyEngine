@@ -128,4 +128,24 @@ describe("ManagerDashboard", () => {
       expect(screen.getByText(/invalid code/i)).toBeInTheDocument();
     });
   });
+
+  it("displays PII with label 'PII:' (not 'PII (disclosed)') when opinion has disclosed_pii", async () => {
+    const opinionsWithPii = [
+      {
+        ...defaultOpinions[0],
+        disclosed_pii: { Name: "Alice", Email: "alice@example.com" },
+      },
+    ];
+    (api.getManagerToken as jest.Mock).mockReturnValue("jwt-token");
+    (api.getManagerSurvey as jest.Mock).mockResolvedValue({ name: "Survey 1" });
+    (api.listManagerOpinions as jest.Mock).mockResolvedValue(opinionsWithPii);
+
+    renderManagerDashboard();
+
+    await waitFor(() => {
+      expect(screen.getByText(/improve tooling/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/PII:/)).toBeInTheDocument();
+    expect(screen.queryByText(/PII \(disclosed\)/)).not.toBeInTheDocument();
+  });
 });

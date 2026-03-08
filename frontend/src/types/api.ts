@@ -54,6 +54,7 @@ export interface SubmitResponse {
 export interface RawResponseListItem {
   id: string;
   submitted_at: string;
+  status: "published" | "converted_to_support" | "pending";
 }
 
 export interface RawAnswerWithLabel {
@@ -61,6 +62,7 @@ export interface RawAnswerWithLabel {
   label: string;
   answer_text: string;
   is_disclosure_agreed: boolean;
+  is_personal_data?: boolean;
 }
 
 export interface RawResponseDetail {
@@ -92,6 +94,7 @@ export interface PublishedOpinion {
   supporter_points: number;
   supporters: number;
   pending_upvotes_count?: number;
+  is_disclosure_agreed?: boolean;
   disclosed_pii: Record<string, string> | null;
 }
 

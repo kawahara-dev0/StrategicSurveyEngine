@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSurveyQuestions, searchPublicOpinions, postUpvote } from "@/lib/api";
 import type { PublicOpinionItem } from "@/types/api";
-import { Search, ThumbsUp, MessageSquare } from "lucide-react";
+import { CircleHelp, Search, ThumbsUp, MessageSquare } from "lucide-react";
 
 export function SurveySearch() {
   const { surveyId } = useParams<{ surveyId: string }>();
@@ -16,6 +16,22 @@ export function SurveySearch() {
   const [upvoteName, setUpvoteName] = useState("");
   const [upvoteEmail, setUpvoteEmail] = useState("");
   const [disclosureAgreed, setDisclosureAgreed] = useState(false);
+  const [disclosureHelpOpen, setDisclosureHelpOpen] = useState(false);
+  const disclosureHelpRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        disclosureHelpOpen &&
+        disclosureHelpRef.current &&
+        !disclosureHelpRef.current.contains(e.target as Node)
+      ) {
+        setDisclosureHelpOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [disclosureHelpOpen]);
 
   const {
     data: surveyData,
@@ -195,18 +211,41 @@ export function SurveySearch() {
                           placeholder="Department"
                           className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
                         />
-                        <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={disclosureAgreed}
-                            onChange={(e) => setDisclosureAgreed(e.target.checked)}
-                            className="mt-0.5"
-                          />
-                          <span>
-                            I agree to disclose my personal information (above) to managers for
-                            evaluation or hearings.
-                          </span>
-                        </label>
+                        <div ref={disclosureHelpRef}>
+                          <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={disclosureAgreed}
+                              onChange={(e) => setDisclosureAgreed(e.target.checked)}
+                              className="mt-0.5"
+                            />
+                            <span>
+                              I agree to disclose my personal information (above) to managers for
+                              evaluation or hearings.
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setDisclosureHelpOpen((prev) => !prev);
+                              }}
+                              className="shrink-0 p-0.5 text-slate-400 hover:text-slate-600 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-400"
+                              aria-label="Learn more about this option"
+                            >
+                              <CircleHelp className="w-3.5 h-3.5" />
+                            </button>
+                          </label>
+                          {disclosureHelpOpen && (
+                            <div className="mt-2 p-3 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700">
+                              <p>
+                                If you opt in and your input leads to meaningful improvements, we
+                                would be happy to acknowledge your contribution. Such recognition
+                                may support your future discussions with your manager, depending on
+                                your organization&apos;s approach.
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2">

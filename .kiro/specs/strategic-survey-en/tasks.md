@@ -71,8 +71,8 @@
  - _Requirements: 2.1, 2.2, 2.3, 2.5_
 
 - [ ] 4.3 Implement moderation endpoints
- - GET /surveys/{id}/responses, GET /surveys/{id}/responses/{rid}, GET /moderation/{id}/submissions
- - POST /surveys/{id}/opinions, GET /surveys/{id}/opinions
+ - GET /moderation/{id}/submissions, GET /surveys/{id}/responses/{rid}
+ - POST /surveys/{id}/opinions, GET /moderation/{id}/opinions
  - PATCH /moderation/{id}/opinions/{oid}, GET /moderation/{id}/opinions/{oid}/upvotes, PATCH /moderation/{id}/upvotes/{uid}
  - Create RawResponseDetail, RawResponseListItem, PublishOpinionCreate, OpinionUpdate, UpvoteUpdate schemas
  - Implement _score_from_components for priority_score
