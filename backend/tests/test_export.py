@@ -2,8 +2,6 @@
 
 from io import BytesIO
 
-import pytest
-
 from app.routers.manager_export import build_pdf
 
 
