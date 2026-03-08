@@ -9,7 +9,7 @@ requires-python = ">=3.11"
 target-version = "py311"
 line-length = 100
 src = ["app", "alembic"]
-exclude = ["tests"]
+exclude = ["tests", ".venv", "venv"]
 
 [tool.ruff.lint]
 select = [

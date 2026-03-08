@@ -26,6 +26,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: strategic_survey_backend
+    volumes:
+      - ./backend:/app
     environment:
       # Use db host inside Docker; root .env DATABASE_URL is for local runs only.
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/strategic_survey
