@@ -109,7 +109,7 @@ async def test_survey_submit_full_flow(admin_client: AsyncClient, client: AsyncC
     assert response_id
 
     # List responses (admin)
-    list_resp = await admin_client.get(f"/admin/surveys/{survey_id}/responses")
+    list_resp = await admin_client.get(f"/admin/moderation/{survey_id}/submissions")
     assert list_resp.status_code == 200
     responses = list_resp.json()
     assert len(responses) >= 1

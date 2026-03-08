@@ -377,14 +377,14 @@ async def create_upvote(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Already voted for this opinion")
+    # Store PII whenever entered (for admin moderation); is_disclosure_agreed controls Manager visibility
     disclosed_pii = {}
-    if body.is_disclosure_agreed:
-        if body.name and body.name.strip():
-            disclosed_pii["Name"] = body.name.strip()
-        if body.email and body.email.strip():
-            disclosed_pii["Email"] = body.email.strip()
-        if body.dept and body.dept.strip():
-            disclosed_pii["Department"] = body.dept.strip()
+    if body.name and body.name.strip():
+        disclosed_pii["Name"] = body.name.strip()
+    if body.email and body.email.strip():
+        disclosed_pii["Email"] = body.email.strip()
+    if body.dept and body.dept.strip():
+        disclosed_pii["Department"] = body.dept.strip()
     raw_comment = body.comment.strip() if body.comment and body.comment.strip() else None
     status = UpvoteStatus.published if raw_comment is None else UpvoteStatus.pending
     upvote = Upvote(
@@ -392,7 +392,7 @@ async def create_upvote(
         user_hash=user_hash,
         raw_comment=raw_comment,
         status=status,
-        is_disclosure_agreed=bool(disclosed_pii),
+        is_disclosure_agreed=body.is_disclosure_agreed,
         disclosed_pii=disclosed_pii if disclosed_pii else None,
     )
     db.add(upvote)

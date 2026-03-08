@@ -48,7 +48,7 @@ const defaultResponses = [
   {
     id: "resp-1",
     submitted_at: "2025-01-15T10:00:00Z",
-    answer_count: 2,
+    status: "pending" as const,
   },
 ];
 

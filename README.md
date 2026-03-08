@@ -73,6 +73,12 @@ python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
+**With Docker** (run migrations manually):
+
+```bash
+docker compose exec backend alembic upgrade head
+```
+
 ### Test (pytest)
 
 Requires PostgreSQL and migrations. Run inside Docker (recommended if no local Python):
@@ -113,7 +119,7 @@ mypy app
 |-----|------|----------|
 | Admin | `X-Admin-API-Key` | POST /admin/surveys, POST /admin/surveys/{id}/questions |
 | Contributor | none | GET /survey/{id}/questions, POST /survey/{id}/submit |
-| Moderation | Admin | GET/POST /admin/surveys/{id}/responses, /opinions |
+| Moderation | Admin | GET /admin/moderation/{id}/submissions, GET /admin/moderation/{id}/opinions, POST /admin/surveys/{id}/opinions |
 | Manager | JWT (Bearer) | POST /manager/auth → JWT, then /manager/{id}/opinions, export |
 
 ---

@@ -93,7 +93,7 @@ sequenceDiagram
 | Frontend | React 18, Vite, TypeScript | Fast dev, type safety |
 | State | TanStack React Query | Server state, caching |
 | Styling | Tailwind CSS | Utility-first, rapid UI |
-| Export | openpyxl, reportlab | Excel (.xlsx), PDF |
+| Export | openpyxl, reportlab | Excel (.xlsx), PDF (structured layout, XML-escaped content) |
 | DB | PostgreSQL 15+ | Schemas, JSONB, full-text search |
 | Migrations | Alembic | public schema only; tenant DDL in code |
 
@@ -152,6 +152,7 @@ erDiagram
         int urgency
         int expected_impact
         int supporter_points
+        bool is_disclosure_agreed
         jsonb disclosed_pii
         text admin_notes
         timestamp updated_at
@@ -204,11 +205,10 @@ CREATE INDEX idx_published_opinions_fts ON {schema}.published_opinions
 | POST | /surveys/{id}/questions | Add question |
 | GET | /surveys/{id}/questions | List questions |
 | DELETE | /surveys/{id}/questions/{qid} | Delete question |
-| GET | /surveys/{id}/responses | List raw responses |
+| GET | /moderation/{id}/submissions | List raw responses (pending first, then by submitted_at desc) |
 | GET | /surveys/{id}/responses/{rid} | Get response with answers |
-| GET | /moderation/{id}/submissions | List raw responses (alias) |
 | POST | /surveys/{id}/opinions | Create published opinion |
-| GET | /surveys/{id}/opinions | List opinions |
+| GET | /moderation/{id}/opinions | List opinions (pending upvotes first, then by updated_at desc) |
 | PATCH | /moderation/{id}/opinions/{oid} | Update opinion |
 | GET | /moderation/{id}/opinions/{oid}/upvotes | List upvotes |
 | PATCH | /moderation/{id}/upvotes/{uid} | Approve/reject upvote |
@@ -276,9 +276,10 @@ hashlib.sha256(f"{request.headers.get('User-Agent','')}{client_host}".encode()).
 
 ### PII Handling
 
-- `disclosed_pii` (JSONB) stores `{name, dept, email}` only when `is_disclosure_agreed` is true
+- Admin stores all PII in `disclosed_pii` for moderation; `is_disclosure_agreed` (per answer/opinion) controls Manager visibility
+- Manager API returns `disclosed_pii` only when `is_disclosure_agreed` is true
 - Public API schemas exclude `disclosed_pii`
-- Manager and Admin APIs include `disclosed_pii` for consented records
+- Manager dashboard displays consented PII with label "PII:"
 
 ## Docker and CI
 

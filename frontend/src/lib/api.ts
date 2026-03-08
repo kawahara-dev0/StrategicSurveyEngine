@@ -60,12 +60,6 @@ function headers(includeAdminKey = true): HeadersInit {
   return h;
 }
 
-export async function healthCheck(): Promise<{ status: string }> {
-  const r = await fetch(`${baseUrl}/health`);
-  if (!r.ok) throw new Error("Health check failed");
-  return r.json();
-}
-
 export async function listSurveys(): Promise<import("@/types/api").Survey[]> {
   const r = await fetch(`${baseUrl}/admin/surveys`, { headers: headers() });
   if (!r.ok) throw new Error(await r.text());
@@ -169,16 +163,7 @@ export async function submitSurveyResponse(
   return r.json();
 }
 
-/** Public API: opinions list and search – no admin key */
-export async function getPublicOpinions(
-  surveyId: string
-): Promise<import("@/types/api").PublicOpinionItem[]> {
-  const id = normalizeSurveyId(surveyId);
-  const r = await fetch(`${baseUrl}/survey/${id}/opinions`);
-  if (!r.ok) throw new Error(await r.text());
-  return r.json();
-}
-
+/** Public API: opinions search – no admin key */
 export async function searchPublicOpinions(
   surveyId: string,
   q: string
@@ -310,6 +295,30 @@ export async function updateUpvote(
     headers: headers(),
     body: JSON.stringify(payload),
   });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/** Convert a submitted response to support for an existing opinion */
+export async function convertResponseToSupport(
+  surveyId: string,
+  responseId: string,
+  payload: {
+    opinion_id: number;
+    published_comment: string;
+    is_disclosure_agreed?: boolean;
+    disclosed_pii?: { Name?: string; Email?: string; Department?: string };
+  }
+): Promise<import("@/types/api").UpvoteItem> {
+  const id = surveyId.startsWith(":") ? surveyId.slice(1) : surveyId;
+  const r = await fetch(
+    `${baseUrl}/admin/moderation/${id}/responses/${responseId}/convert-to-support`,
+    {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify(payload),
+    }
+  );
   if (!r.ok) throw new Error(await r.text());
   return r.json();
 }

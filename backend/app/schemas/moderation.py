@@ -10,6 +10,7 @@ class RawAnswerWithLabel(BaseModel):
     label: str
     answer_text: str
     is_disclosure_agreed: bool
+    is_personal_data: bool = False
 
 
 class RawResponseListItem(BaseModel):
@@ -17,6 +18,7 @@ class RawResponseListItem(BaseModel):
 
     id: str
     submitted_at: str
+    status: str  # "published" | "converted_to_support" | "pending"
 
 
 class RawResponseDetail(BaseModel):
@@ -63,7 +65,8 @@ class PublishedOpinionResponse(BaseModel):
     pending_upvotes_count: int = (
         0  # Upvotes not yet published/rejected (show "View / moderate" when > 0)
     )
-    disclosed_pii: dict | None = None
+    is_disclosure_agreed: bool = False
+    disclosed_pii: dict | None = None  # {label: value}
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -126,3 +129,12 @@ class UpvoteUpdate(BaseModel):
         if v not in ("pending", "published", "rejected"):
             raise ValueError("Must be pending, published, or rejected")
         return v
+
+
+class ConvertToSupportCreate(BaseModel):
+    """Convert a submitted response to support (upvote) for an existing opinion."""
+
+    opinion_id: int
+    published_comment: str = ""
+    is_disclosure_agreed: bool = False
+    disclosed_pii: dict | None = None  # Name, Email, Department
