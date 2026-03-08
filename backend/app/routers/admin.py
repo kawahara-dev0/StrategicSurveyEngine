@@ -36,6 +36,7 @@ from app.schemas.moderation import (
 )
 from app.schemas.question import QuestionCreate, QuestionResponse
 from app.schemas.survey import SurveyCreate, SurveyCreateResponse, SurveyResponse
+from app.services.survey_lifecycle import run_survey_lifecycle
 from app.services.survey_provisioning import _generate_access_code, create_survey, delete_survey
 
 
@@ -168,6 +169,24 @@ async def delete_survey_endpoint(
         await delete_survey(db, survey_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/jobs/survey-lifecycle")
+async def run_survey_lifecycle_job(
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(_require_admin),
+):
+    """
+    Run the survey lifecycle batch: suspend expired contracts, delete past retention.
+    Callable via cron: curl -X POST -H "X-Admin-API-Key: $KEY" /admin/jobs/survey-lifecycle
+    """
+    result = await run_survey_lifecycle(db)
+    return {
+        "suspended_count": result.suspended_count,
+        "deleted_count": result.deleted_count,
+        "suspended_ids": result.suspended_ids,
+        "deleted_ids": result.deleted_ids,
+    }
 
 
 @router.post("/surveys/{survey_id}/questions", response_model=QuestionResponse)

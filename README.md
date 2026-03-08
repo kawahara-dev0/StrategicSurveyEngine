@@ -96,6 +96,22 @@ alembic upgrade head
 pytest tests/ -v
 ```
 
+### Survey lifecycle batch (30/90 day rule)
+
+Surveys are suspended when `contract_end_date` passes (default +30 days), and deleted when `deletion_due_date` passes (contract_end + 90 days).
+
+**Run via cron** (e.g. daily at 00:05):
+
+```bash
+docker compose exec backend python run_survey_lifecycle.py
+```
+
+**Or via HTTP** (e.g. external scheduler):
+
+```bash
+curl -X POST -H "X-Admin-API-Key: $ADMIN_API_KEY" http://localhost:8000/admin/jobs/survey-lifecycle
+```
+
 ### Lint & type check
 
 **With Docker** (recommended if no local Python):
